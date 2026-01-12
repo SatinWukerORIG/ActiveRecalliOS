@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+
+{% block title %}Notification Settings - Active Recall{% endblock %}
+{% block page_title %}Notification Settings{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    
+    <!-- Recall Frequency Settings -->
+    <div class="card">
+        <h2>📱 Recall Frequency</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 25px;">
+            Control how often Active Recall interrupts you with study reminders during your day.
+        </p>
+        
+        <div id="recallAlert" style="display: none;"></div>
+        
+        <form id="recallSettingsForm">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 20px;">
+                    <input type="checkbox" id="recallEnabled" style="width: auto; margin-right: 8px;">
+                    Enable Active Recall notifications
+                </label>
+            </div>
+            
+            <div id="recallOptions" style="display: none;">
+                <div class="form-group">
+                    <label for="recallFrequency">Recall Frequency:</label>
+                    <select id="recallFrequency">
+                        <option value="15">Every 15 minutes</option>
+                        <option value="30" selected>Every 30 minutes</option>
+                        <option value="45">Every 45 minutes</option>
+                        <option value="60">Every hour</option>
+                        <option value="90">Every 1.5 hours</option>
+                        <option value="120">Every 2 hours</option>
+                        <option value="180">Every 3 hours</option>
+                        <option value="240">Every 4 hours</option>
+                    </select>
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        How often to send study reminders when you have cards due
+                    </small>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="recallStartTime">Start Time:</label>
+                        <input type="time" id="recallStartTime" value="08:00">
+                        <small style="color: var(--text-secondary); font-size: 12px;">
+                            When to start sending recalls
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="recallEndTime">End Time:</label>
+                        <input type="time" id="recallEndTime" value="22:00">
+                        <small style="color: var(--text-secondary); font-size: 12px;">
+                            When to stop sending recalls
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maxDailyRecalls">Maximum Daily Recalls:</label>
+                    <input type="number" id="maxDailyRecalls" min="1" max="100" value="20">
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        Limit the total number of recall notifications per day
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Active Days:</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="1" style="width: auto; margin-right: 5px;">
+                            Monday
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="2" style="width: auto; margin-right: 5px;">
+                            Tuesday
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="3" style="width: auto; margin-right: 5px;">
+                            Wednesday
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="4" style="width: auto; margin-right: 5px;">
+                            Thursday
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="5" style="width: auto; margin-right: 5px;">
+                            Friday
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="6" style="width: auto; margin-right: 5px;">
+                            Saturday
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" class="dayCheckbox" value="7" style="width: auto; margin-right: 5px;">
+                            Sunday
+                        </label>
+                    </div>
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        Select which days of the week to receive recall notifications
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Recall from Folders:</label>
+                    <div id="folderSelection" style="margin-top: 8px;">
+                        <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 8px;">
+                            <input type="radio" name="folderOption" value="all" id="allFolders" checked style="width: auto; margin-right: 8px;">
+                            All folders
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 8px;">
+                            <input type="radio" name="folderOption" value="selected" id="selectedFolders" style="width: auto; margin-right: 8px;">
+                            Selected folders only
+                        </label>
+                        <div id="folderCheckboxes" style="margin-left: 24px; margin-top: 10px; display: none;">
+                            <!-- Folder checkboxes will be loaded dynamically -->
+                        </div>
+                    </div>
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        Choose which folders to include in recall notifications. This lets you focus on specific subjects or topics.
+                    </small>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn" id="saveRecallBtn">Save Recall Settings</button>
+        </form>
+    </div>
+    
+    <!-- iOS Live Activity Settings -->
+    <div class="card">
+        <h2>📲 iOS Live Activity</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 25px;">
+            Configure Live Activities that appear on your iPhone's home screen and lock screen.
+        </p>
+        
+        <div id="liveActivityAlert" style="display: none;"></div>
+        
+        <form id="liveActivityForm">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 20px;">
+                    <input type="checkbox" id="liveActivityEnabled" style="width: auto; margin-right: 8px;">
+                    Enable Live Activities
+                </label>
+            </div>
+            
+            <div id="liveActivityOptions" style="display: none;">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; font-weight: normal;">
+                        <input type="checkbox" id="showCardPreview" style="width: auto; margin-right: 8px;">
+                        Show card preview in Live Activity
+                    </label>
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        Display a preview of the next card to review
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; font-weight: normal;">
+                        <input type="checkbox" id="showProgressUpdates" style="width: auto; margin-right: 8px;">
+                        Show study progress updates
+                    </label>
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        Update Live Activity with your study session progress
+                    </small>
+                </div>
+                
+                <div class="info-box" style="padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h4 style="margin-bottom: 10px;">📱 Live Activity Features:</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+                        <li>Study session progress on home screen</li>
+                        <li>Quick access to continue studying</li>
+                        <li>Real-time card count updates</li>
+                        <li>Session completion celebrations</li>
+                        <li>Daily progress summaries</li>
+                    </ul>
+                </div>
+                
+                <div class="form-group">
+                    <button type="button" onclick="testLiveActivity()" class="btn" style="background: var(--secondary-color);">
+                        🧪 Test Live Activity
+                    </button>
+                    <small style="color: var(--text-secondary); font-size: 12px; display: block; margin-top: 5px;">
+                        Send a test Live Activity to your device
+                    </small>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn" id="saveLiveActivityBtn">Save Live Activity Settings</button>
+        </form>
+    </div>
+    
+    <!-- Focus Mode & Sleep Schedule -->
+    <div class="card">
+        <h2>🌙 Focus Mode & Sleep Schedule</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 25px;">
+            Set quiet hours and focus periods when you don't want to be interrupted.
+        </p>
+        
+        <div id="focusAlert" style="display: none;"></div>
+        
+        <form id="focusSettingsForm">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; font-weight: normal;">
+                    <input type="checkbox" id="focusMode" style="width: auto; margin-right: 8px;">
+                    Enable Focus Mode (reduces all notifications)
+                </label>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0;">
+                <div class="form-group">
+                    <label for="sleepStart">Sleep Start Time:</label>
+                    <input type="time" id="sleepStart">
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        No notifications after this time
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sleepEnd">Sleep End Time:</label>
+                    <input type="time" id="sleepEnd">
+                    <small style="color: var(--text-secondary); font-size: 12px;">
+                        Resume notifications at this time
+                    </small>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn" id="saveFocusBtn">Save Focus Settings</button>
+        </form>
+    </div>
+    
+    <!-- Current Status -->
+    <div class="card">
+        <h2>📊 Current Status</h2>
+        <div id="currentStatus">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div class="info-box" style="padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: var(--primary-color);" id="statusRecalls">-</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">Recalls Today</div>
+                </div>
+                <div class="info-box" style="padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: var(--primary-color);" id="statusNextRecall">-</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">Next Recall</div>
+                </div>
+                <div class="info-box" style="padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 1.2rem; font-weight: bold; color: var(--primary-color);" id="statusAvailable">-</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">Available Now</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="card">
+        <h2>⚡ Quick Actions</h2>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <button onclick="pauseRecalls()" class="btn" style="background: #ff6b35;" id="pauseBtn">
+                ⏸️ Pause
+            </button>
+            <button onclick="resumeRecalls()" class="btn btn-success" id="resumeBtn">
+                ▶️ Resume
+            </button>
+            <button onclick="sendTestRecall()" class="btn" style="background: var(--secondary-color);">
+                🧪 Send Test Recall
+            </button>
+            <a href="{{ url_for('web.index') }}" class="btn" style="background: #666;">
+                🏠 Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let USER_ID = null;
+
+// Load current settings
+async function loadSettings() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch('/api/auth/me');
+        const result = await response.json();
+        const user = result.user;
+        
+        // Load recall settings
+        document.getElementById('recallEnabled').checked = user.recall_enabled !== false;
+        document.getElementById('recallFrequency').value = user.recall_frequency_minutes || 30;
+        document.getElementById('recallStartTime').value = user.recall_start_time || '08:00';
+        document.getElementById('recallEndTime').value = user.recall_end_time || '22:00';
+        document.getElementById('maxDailyRecalls').value = user.max_daily_recalls || 20;
+        
+        // Load active days
+        const activeDays = user.recall_days_of_week ? user.recall_days_of_week.split(',') : ['1','2','3','4','5','6','7'];
+        document.querySelectorAll('.dayCheckbox').forEach(checkbox => {
+            checkbox.checked = activeDays.includes(checkbox.value);
+        });
+        
+        // Load Live Activity settings
+        document.getElementById('liveActivityEnabled').checked = user.live_activity_enabled !== false;
+        document.getElementById('showCardPreview').checked = user.show_card_preview !== false;
+        document.getElementById('showProgressUpdates').checked = user.show_progress_updates !== false;
+        
+        // Load focus settings
+        document.getElementById('focusMode').checked = user.focus_mode || false;
+        document.getElementById('sleepStart').value = user.sleep_start || '';
+        document.getElementById('sleepEnd').value = user.sleep_end || '';
+        
+        // Update UI based on settings
+        toggleRecallOptions();
+        toggleLiveActivityOptions();
+        
+        // Update pause/resume button states
+        updatePauseResumeButtons(user.recall_paused || false);
+        
+        // Load current status
+        loadCurrentStatus();
+        
+        // Load folder settings
+        await loadFolderSettings(user);
+        
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
+
+// Update pause/resume button states
+function updatePauseResumeButtons(isPaused) {
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    
+    if (isPaused) {
+        pauseBtn.textContent = '⏸️ Paused';
+        pauseBtn.style.background = '#666';
+        pauseBtn.disabled = true;
+        resumeBtn.style.display = 'inline-block';
+        resumeBtn.disabled = false;
+    } else {
+        pauseBtn.textContent = '⏸️ Pause';
+        pauseBtn.style.background = '#ff6b35';
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = false;
+    }
+}
+
+// Load current status information
+async function loadCurrentStatus() {
+    try {
+        const response = await fetch('/api/notifications/status');
+        if (response.ok) {
+            const status = await response.json();
+            document.getElementById('statusRecalls').textContent = status.recalls_today || '0';
+            document.getElementById('statusNextRecall').textContent = status.next_recall || 'Not scheduled';
+            document.getElementById('statusAvailable').textContent = status.available ? 'Yes' : 'No';
+        }
+    } catch (error) {
+        console.error('Error loading status:', error);
+    }
+}
+
+// Toggle recall options visibility
+function toggleRecallOptions() {
+    const enabled = document.getElementById('recallEnabled').checked;
+    document.getElementById('recallOptions').style.display = enabled ? 'block' : 'none';
+}
+
+// Toggle Live Activity options visibility
+function toggleLiveActivityOptions() {
+    const enabled = document.getElementById('liveActivityEnabled').checked;
+    document.getElementById('liveActivityOptions').style.display = enabled ? 'block' : 'none';
+}
+
+// Folder selection functions
+async function loadFolderSettings(user) {
+    try {
+        // Load available folders
+        const foldersResponse = await fetch('/api/folders');
+        const foldersData = await foldersResponse.json();
+        
+        const folderCheckboxes = document.getElementById('folderCheckboxes');
+        folderCheckboxes.innerHTML = '';
+        
+        if (foldersData.folders.length === 0) {
+            folderCheckboxes.innerHTML = '<p style="color: var(--text-secondary); font-size: 12px; margin: 10px 0;">No folders created yet. Create folders to organize your recall content.</p>';
+        } else {
+            foldersData.folders.forEach(folder => {
+                const label = document.createElement('label');
+                label.style.cssText = 'display: flex; align-items: center; font-weight: normal; margin-bottom: 5px;';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'folderCheckbox';
+                checkbox.value = folder.id;
+                checkbox.style.cssText = 'width: auto; margin-right: 8px;';
+                
+                const span = document.createElement('span');
+                span.textContent = `📁 ${folder.name}`;
+                span.style.color = folder.color;
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                folderCheckboxes.appendChild(label);
+            });
+        }
+        
+        // Set current folder selection
+        if (user.recall_folders) {
+            document.getElementById('selectedFolders').checked = true;
+            document.getElementById('folderCheckboxes').style.display = 'block';
+            
+            const selectedFolderIds = user.recall_folders.split(',');
+            document.querySelectorAll('.folderCheckbox').forEach(checkbox => {
+                checkbox.checked = selectedFolderIds.includes(checkbox.value);
+            });
+        } else {
+            document.getElementById('allFolders').checked = true;
+            document.getElementById('folderCheckboxes').style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('Error loading folder settings:', error);
+    }
+}
+
+// Handle folder selection radio buttons
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'folderOption') {
+        const folderCheckboxes = document.getElementById('folderCheckboxes');
+        if (e.target.value === 'selected') {
+            folderCheckboxes.style.display = 'block';
+        } else {
+            folderCheckboxes.style.display = 'none';
+        }
+    }
+});
+
+// Save recall settings
+document.getElementById('recallSettingsForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('saveRecallBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    
+    const activeDays = Array.from(document.querySelectorAll('.dayCheckbox:checked')).map(cb => cb.value);
+    
+    // Get folder settings
+    let recallFolders = null;
+    if (document.getElementById('selectedFolders').checked) {
+        const selectedFolders = [];
+        document.querySelectorAll('.folderCheckbox:checked').forEach(checkbox => {
+            selectedFolders.push(checkbox.value);
+        });
+        recallFolders = selectedFolders.join(',');
+    }
+    
+    const formData = {
+        recall_enabled: document.getElementById('recallEnabled').checked,
+        recall_frequency_minutes: parseInt(document.getElementById('recallFrequency').value),
+        recall_start_time: document.getElementById('recallStartTime').value,
+        recall_end_time: document.getElementById('recallEndTime').value,
+        max_daily_recalls: parseInt(document.getElementById('maxDailyRecalls').value),
+        recall_days_of_week: activeDays.join(','),
+        recall_folders: recallFolders
+    };
+    
+    try {
+        const response = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            showAlert('recallAlert', 'Recall settings saved successfully!', 'success');
+        } else {
+            const result = await response.json();
+            showAlert('recallAlert', result.error || 'Failed to save settings', 'error');
+        }
+    } catch (error) {
+        showAlert('recallAlert', 'Network error. Please try again.', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+});
+
+// Save Live Activity settings
+document.getElementById('liveActivityForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('saveLiveActivityBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    
+    const formData = {
+        live_activity_enabled: document.getElementById('liveActivityEnabled').checked,
+        show_card_preview: document.getElementById('showCardPreview').checked,
+        show_progress_updates: document.getElementById('showProgressUpdates').checked
+    };
+    
+    try {
+        const response = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            showAlert('liveActivityAlert', 'Live Activity settings saved successfully!', 'success');
+        } else {
+            const result = await response.json();
+            showAlert('liveActivityAlert', result.error || 'Failed to save settings', 'error');
+        }
+    } catch (error) {
+        showAlert('liveActivityAlert', 'Network error. Please try again.', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+});
+
+// Save focus settings
+document.getElementById('focusSettingsForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('saveFocusBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    
+    const formData = {
+        focus_mode: document.getElementById('focusMode').checked,
+        sleep_start: document.getElementById('sleepStart').value || null,
+        sleep_end: document.getElementById('sleepEnd').value || null
+    };
+    
+    try {
+        const response = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            showAlert('focusAlert', 'Focus settings saved successfully!', 'success');
+        } else {
+            const result = await response.json();
+            showAlert('focusAlert', result.error || 'Failed to save settings', 'error');
+        }
+    } catch (error) {
+        showAlert('focusAlert', 'Network error. Please try again.', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+});
+
+// Test Live Activity
+async function testLiveActivity() {
+    try {
+        const response = await fetch('/api/live-activity/test', {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            showAlert('liveActivityAlert', 'Test Live Activity sent! Check your iPhone home screen.', 'success');
+        } else {
+            const result = await response.json();
+            showAlert('liveActivityAlert', result.error || 'Failed to send test', 'error');
+        }
+    } catch (error) {
+        showAlert('liveActivityAlert', 'Network error. Please try again.', 'error');
+    }
+}
+
+// Quick action functions
+async function pauseRecalls() {
+    const btn = document.getElementById('pauseBtn');
+    const originalText = btn.textContent;
+    btn.textContent = '⏸️ Pausing...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/notifications/pause', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showAlert('recallAlert', 'Recalls paused', 'success');
+            updatePauseResumeButtons(true);
+            loadCurrentStatus(); // Refresh status
+        } else {
+            const result = await response.json();
+            showAlert('recallAlert', result.error || 'Failed to pause recalls', 'error');
+        }
+    } catch (error) {
+        showAlert('recallAlert', 'Network error. Please try again.', 'error');
+    } finally {
+        btn.disabled = false;
+        if (btn.textContent === '⏸️ Pausing...') {
+            btn.textContent = originalText;
+        }
+    }
+}
+
+async function resumeRecalls() {
+    const btn = document.getElementById('resumeBtn');
+    const originalText = btn.textContent;
+    btn.textContent = '▶️ Resuming...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/notifications/resume', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showAlert('recallAlert', 'Recalls resumed', 'success');
+            updatePauseResumeButtons(false);
+            loadCurrentStatus(); // Refresh status
+        } else {
+            const result = await response.json();
+            showAlert('recallAlert', result.error || 'Failed to resume recalls', 'error');
+        }
+    } catch (error) {
+        showAlert('recallAlert', 'Network error. Please try again.', 'error');
+    } finally {
+        btn.disabled = false;
+        if (btn.textContent === '▶️ Resuming...') {
+            btn.textContent = originalText;
+        }
+    }
+}
+
+async function sendTestRecall() {
+    try {
+        const response = await fetch('/api/notifications/test-recall', {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            showAlert('recallAlert', 'Test recall sent!', 'success');
+        } else {
+            const result = await response.json();
+            showAlert('recallAlert', result.error || 'Failed to send test', 'error');
+        }
+    } catch (error) {
+        showAlert('recallAlert', 'Network error. Please try again.', 'error');
+    }
+}
+
+// Utility functions
+function showAlert(containerId, message, type) {
+    const alertDiv = document.getElementById(containerId);
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    alertDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        alertDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Event listeners
+document.getElementById('recallEnabled').addEventListener('change', toggleRecallOptions);
+document.getElementById('liveActivityEnabled').addEventListener('change', toggleLiveActivityOptions);
+
+// Initialize - user is already authenticated via Flask session
+window.addEventListener('load', function() {
+    // Get user ID from the template (passed from Flask)
+    {% if user %}
+    USER_ID = {{ user.id }};
+    loadSettings();
+    {% else %}
+    // Fallback - redirect to welcome page
+    window.location.href = '/welcome';
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1362 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Active Recall{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- User Stats -->
+<div class="stats-grid" id="stats">
+    <div class="stat-card">
+        <div class="stat-number" id="totalCards">0</div>
+        <div class="stat-label">Total Cards</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="dueCards">0</div>
+        <div class="stat-label">Due for Review</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="newCards">0</div>
+        <div class="stat-label">New Cards</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="matureCards">0</div>
+        <div class="stat-label">Mature Cards</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <h2>Quick Actions</h2>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
+        <a href="{{ url_for('web.study_interface') }}" class="btn btn-success">📚 Start Studying</a>
+        <button onclick="showAddCard()" class="btn">➕ Add Card</button>
+        <button onclick="showAIGeneration()" class="btn btn-secondary">🤖 AI Generate</button>
+        <button onclick="showFolderManager()" class="btn" style="background: #8A2BE2;">📁 Manage Folders</button>
+        <button onclick="loadCards()" class="btn" style="background: #666;">🔄 Refresh</button>
+    </div>
+</div>
+
+<!-- Folders Section -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2>📁 My Folders</h2>
+            <div id="breadcrumb" style="font-size: 14px; color: var(--text-secondary); margin-top: 5px;">
+                <span onclick="navigateToRoot()" style="cursor: pointer; color: var(--primary-color);">📂 Home</span>
+                <span id="breadcrumbPath"></span>
+            </div>
+        </div>
+        <div>
+            <button onclick="showCreateFolder()" class="btn" style="background: #8A2BE2;">➕ New Folder</button>
+            <button onclick="showNotificationSettings()" class="btn" style="background: #ff6b35; margin-left: 10px;">🔔 Notifications</button>
+        </div>
+    </div>
+    
+    <div id="folderNavigation">
+        <div id="foldersContainer">
+            <p style="color: var(--text-secondary);">Loading folders...</p>
+        </div>
+        
+        <div id="currentFolderCards" style="margin-top: 30px; display: none;">
+            <h3>📄 Cards in this folder</h3>
+            <div id="folderCardsList"></div>
+            <button onclick="showAddCardToFolder()" class="btn" style="margin-top: 15px;">➕ Add Card to Folder</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Card Modal -->
+<div id="addCardModal" class="modal">
+    <div class="modal-content">
+        <h2>Add New Content</h2>
+        <form id="contentForm">
+            <div class="form-group">
+                <label for="contentType">Content Type:</label>
+                <select id="contentType" required>
+                    <option value="flashcard">Flashcard (Question & Answer)</option>
+                    <option value="information">Information Piece (Formula, Fact, etc.)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="front" id="frontLabel">Question:</label>
+                <textarea id="front" required placeholder="Enter your question or information..."></textarea>
+            </div>
+
+            <div class="form-group" id="backGroup">
+                <label for="back">Answer:</label>
+                <textarea id="back" placeholder="Enter the answer..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">Subject (Optional):</label>
+                <input type="text" id="subject" placeholder="e.g., Geography, Physics, Spanish">
+            </div>
+
+            <div class="form-group">
+                <label for="cardFolder">Folder (Optional):</label>
+                <select id="cardFolder">
+                    <option value="">No Folder</option>
+                    <!-- Folders will be loaded dynamically -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags (comma-separated):</label>
+                <input type="text" id="tags" placeholder="e.g., formula, important, exam">
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button type="submit" class="btn">Add Content</button>
+                <button type="button" onclick="closeAddCard()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- AI Generation Modal -->
+<div id="aiModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h2>🤖 AI Content Generation</h2>
+        <p>Upload PDFs, images, or paste text to generate optimized flashcards and information pieces!</p>
+        
+        <form id="aiGenerationForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="aiSourceMaterial">Study Material (Text):</label>
+                <textarea id="aiSourceMaterial" style="height: 120px;" 
+                        placeholder="Paste your notes, textbook excerpts, articles, or any study material here..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiPdfFile">Upload PDF:</label>
+                <input type="file" id="aiPdfFile" accept=".pdf" 
+                       style="padding: 8px; border: 2px dashed var(--border-color); border-radius: 8px;">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Upload a PDF document to extract text content
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiImages">Upload Images:</label>
+                <input type="file" id="aiImages" accept="image/*" multiple 
+                       style="padding: 8px; border: 2px dashed var(--border-color); border-radius: 8px;">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Upload up to 5 images (diagrams, charts, screenshots, etc.)
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiGenerationType">Generation Type:</label>
+                <select id="aiGenerationType">
+                    <option value="flashcards">Flashcards (Q&A pairs)</option>
+                    <option value="information">Information Pieces (Facts & Concepts)</option>
+                    <option value="mixed" selected>Mixed Content (Both)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiSubject">Subject (Optional):</label>
+                <input type="text" id="aiSubject" placeholder="e.g., Biology, Physics, History">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Leave blank if not specific to a subject
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="aiFolder">Save to Folder (Optional):</label>
+                <select id="aiFolder">
+                    <option value="">No Folder</option>
+                    <!-- Folders will be loaded dynamically -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiFocusAreas">Focus Areas (Optional):</label>
+                <input type="text" id="aiFocusAreas" 
+                       placeholder="e.g., formulas, definitions, key concepts">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Comma-separated areas to focus on (leave blank for general content)
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiMaxCards">Max Items:</label>
+                <input type="number" id="aiMaxCards" value="10" min="1" max="25">
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button type="submit" id="generateBtn" class="btn btn-secondary">Generate Content</button>
+                <button type="button" onclick="closeAIModal()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+            </div>
+        </form>
+        
+        <div id="aiResults" style="margin-top: 20px; display: none;">
+            <h3>✅ Generation Complete!</h3>
+            <div id="aiResultsContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Cards List -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>📄 Unorganized Cards</h2>
+        <button onclick="showAddCard()" class="btn">➕ Add Card</button>
+    </div>
+    <div id="cardsList" style="margin-top: 20px;"></div>
+</div>
+
+<!-- Create Folder Modal -->
+<div id="createFolderModal" class="modal">
+    <div class="modal-content">
+        <h2>📁 Create New Folder</h2>
+        <form id="createFolderForm">
+            <div class="form-group">
+                <label for="folderName">Folder Name:</label>
+                <input type="text" id="folderName" required placeholder="e.g., Biology, Math Formulas">
+            </div>
+            
+            <div class="form-group">
+                <label for="folderDescription">Description (Optional):</label>
+                <textarea id="folderDescription" placeholder="Brief description of this folder's content..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="folderColor">Color:</label>
+                <select id="folderColor">
+                    <option value="#007AFF">Blue</option>
+                    <option value="#8A2BE2">Purple</option>
+                    <option value="#28a745">Green</option>
+                    <option value="#dc3545">Red</option>
+                    <option value="#ffc107">Yellow</option>
+                    <option value="#17a2b8">Cyan</option>
+                    <option value="#6c757d">Gray</option>
+                </select>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button type="submit" class="btn">Create Folder</button>
+                <button type="button" onclick="closeCreateFolder()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Folder Manager Modal -->
+<div id="folderManagerModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <h2>📁 Folder Manager</h2>
+        <div id="folderManagerContent">
+            <p style="color: var(--text-secondary);">Loading folders...</p>
+        </div>
+        <div style="margin-top: 20px;">
+            <button onclick="showCreateFolder()" class="btn" style="background: #8A2BE2;">➕ New Folder</button>
+            <button type="button" onclick="closeFolderManager()" class="btn" style="background: #666; margin-left: 10px;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <h2>⚠️ Confirm Delete</h2>
+        <p id="deleteMessage">Are you sure you want to delete this item?</p>
+        <div style="margin-top: 20px;">
+            <button id="confirmDeleteBtn" class="btn btn-danger">Delete</button>
+            <button type="button" onclick="closeDeleteModal()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Settings Modal -->
+<div id="notificationSettingsModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <h2>🔔 Notification Settings</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 25px;">
+            Choose which folders and cards to include in your recall notifications.
+        </p>
+        
+        <div id="notificationAlert" style="display: none;"></div>
+        
+        <form id="notificationSettingsForm">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 20px;">
+                    <input type="checkbox" id="notifRecallEnabled" style="width: auto; margin-right: 8px;">
+                    Enable recall notifications
+                </label>
+            </div>
+            
+            <div id="notificationOptions" style="display: none;">
+                <div class="form-group">
+                    <label>Select content for notifications:</label>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 8px;">
+                            <input type="radio" name="contentSelection" value="all" id="allContent" checked style="width: auto; margin-right: 8px;">
+                            All folders and cards
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal; margin-bottom: 8px;">
+                            <input type="radio" name="contentSelection" value="selected" id="selectedContent" style="width: auto; margin-right: 8px;">
+                            Selected folders only
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="folderSelectionContainer" style="margin-top: 20px; display: none;">
+                    <label>Choose folders:</label>
+                    <div id="notificationFolderList" style="margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px;">
+                        <p style="color: var(--text-secondary);">Loading folders...</p>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="notifFrequency">Notification frequency:</label>
+                    <select id="notifFrequency">
+                        <option value="15">Every 15 minutes</option>
+                        <option value="30" selected>Every 30 minutes</option>
+                        <option value="60">Every hour</option>
+                        <option value="120">Every 2 hours</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button type="submit" class="btn">Save Notification Settings</button>
+                <button type="button" onclick="closeNotificationSettings()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get current user ID from session
+let USER_ID = null;
+
+// Navigation state
+let currentFolderId = null;
+let navigationPath = [];
+
+// Modal functions
+function showAddCard() {
+    document.getElementById('addCardModal').style.display = 'block';
+}
+
+function closeAddCard() {
+    document.getElementById('addCardModal').style.display = 'none';
+    document.getElementById('contentForm').reset();
+}
+
+function showAIGeneration() {
+    document.getElementById('aiModal').style.display = 'block';
+}
+
+function closeAIModal() {
+    document.getElementById('aiModal').style.display = 'none';
+    document.getElementById('aiResults').style.display = 'none';
+    document.getElementById('aiGenerationForm').reset();
+}
+
+// Folder management functions
+function showCreateFolder() {
+    loadFoldersIntoSelect(); // Load folders for any open modals
+    document.getElementById('createFolderModal').style.display = 'block';
+}
+
+function closeCreateFolder() {
+    document.getElementById('createFolderModal').style.display = 'none';
+    document.getElementById('createFolderForm').reset();
+}
+
+function showFolderManager() {
+    document.getElementById('folderManagerModal').style.display = 'block';
+    loadFolderManager();
+}
+
+function closeFolderManager() {
+    document.getElementById('folderManagerModal').style.display = 'none';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// Notification settings functions
+function showNotificationSettings() {
+    document.getElementById('notificationSettingsModal').style.display = 'block';
+    loadNotificationSettings();
+}
+
+function closeNotificationSettings() {
+    document.getElementById('notificationSettingsModal').style.display = 'none';
+}
+
+// Navigation functions
+function navigateToRoot() {
+    currentFolderId = null;
+    navigationPath = [];
+    updateBreadcrumb();
+    loadFolders();
+    hideFolderCards();
+}
+
+function navigateToFolder(folderId, folderName) {
+    // Add current folder to path if not already there
+    if (currentFolderId !== folderId) {
+        if (currentFolderId !== null) {
+            // We're navigating deeper, add to path
+            const currentFolder = navigationPath.find(f => f.id === currentFolderId);
+            if (!currentFolder) {
+                navigationPath.push({id: currentFolderId, name: getCurrentFolderName()});
+            }
+        }
+        navigationPath.push({id: folderId, name: folderName});
+    }
+    
+    currentFolderId = folderId;
+    updateBreadcrumb();
+    loadFolders();
+    loadFolderCards(folderId);
+}
+
+function navigateToParent(parentId, parentName) {
+    // Remove folders from path until we reach the parent
+    while (navigationPath.length > 0 && navigationPath[navigationPath.length - 1].id !== parentId) {
+        navigationPath.pop();
+    }
+    
+    currentFolderId = parentId;
+    updateBreadcrumb();
+    loadFolders();
+    
+    if (parentId) {
+        loadFolderCards(parentId);
+    } else {
+        hideFolderCards();
+    }
+}
+
+function getCurrentFolderName() {
+    // Helper to get current folder name from the UI
+    const folderElements = document.querySelectorAll('[data-folder-id]');
+    for (let elem of folderElements) {
+        if (parseInt(elem.dataset.folderId) === currentFolderId) {
+            return elem.querySelector('.folder-name')?.textContent || 'Unknown';
+        }
+    }
+    return 'Unknown';
+}
+
+function updateBreadcrumb() {
+    const breadcrumbPath = document.getElementById('breadcrumbPath');
+    
+    if (navigationPath.length === 0) {
+        breadcrumbPath.innerHTML = '';
+        return;
+    }
+    
+    let pathHtml = '';
+    navigationPath.forEach((folder, index) => {
+        pathHtml += ` <span style="color: var(--text-secondary);">></span> `;
+        if (index === navigationPath.length - 1) {
+            // Current folder - not clickable
+            pathHtml += `<span style="color: var(--text-primary);">${folder.name}</span>`;
+        } else {
+            // Parent folders - clickable
+            pathHtml += `<span onclick="navigateToParent(${folder.id}, '${folder.name}')" style="cursor: pointer; color: var(--primary-color);">${folder.name}</span>`;
+        }
+    });
+    
+    breadcrumbPath.innerHTML = pathHtml;
+}
+
+function showAddCardToFolder() {
+    // Set the current folder in the add card modal
+    if (currentFolderId) {
+        document.getElementById('cardFolder').value = currentFolderId;
+    }
+    showAddCard();
+}
+
+function hideFolderCards() {
+    document.getElementById('currentFolderCards').style.display = 'none';
+}
+
+function loadFolderCards(folderId) {
+    fetch(`/api/folders/${folderId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.folder) {
+                const cardsContainer = document.getElementById('folderCardsList');
+                const cardsSection = document.getElementById('currentFolderCards');
+                
+                cardsContainer.innerHTML = '';
+                
+                if (data.folder.cards.length === 0) {
+                    cardsContainer.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No cards in this folder yet.</p>';
+                } else {
+                    data.folder.cards.forEach(card => {
+                        const cardDiv = createCardElement(card);
+                        cardsContainer.appendChild(cardDiv);
+                    });
+                }
+                
+                cardsSection.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading folder cards:', error);
+            showAlert('Error loading folder cards', 'error');
+        });
+}
+
+// Global variables for delete confirmation
+let deleteType = null;
+let deleteId = null;
+
+// Update content type form
+document.getElementById('contentType').addEventListener('change', function() {
+    const isFlashcard = this.value === 'flashcard';
+    const backGroup = document.getElementById('backGroup');
+    const frontLabel = document.getElementById('frontLabel');
+    const backField = document.getElementById('back');
+    
+    if (isFlashcard) {
+        frontLabel.textContent = 'Question:';
+        backGroup.style.display = 'block';
+        backField.required = true;
+    } else {
+        frontLabel.textContent = 'Information:';
+        backGroup.style.display = 'none';
+        backField.required = false;
+    }
+});
+
+// Add content
+document.getElementById('contentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!USER_ID) {
+        showAlert('Please log in to add content', 'error');
+        return;
+    }
+    
+    const formData = {
+        user_id: USER_ID,
+        content_type: document.getElementById('contentType').value,
+        front: document.getElementById('front').value,
+        back: document.getElementById('back').value,
+        subject: document.getElementById('subject').value,
+        folder_id: document.getElementById('cardFolder').value || null,
+        tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)
+    };
+
+    try {
+        const response = await fetch('/cards', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            showAlert('Content added successfully!', 'success');
+            closeAddCard();
+            loadCards();
+            loadStats();
+        } else {
+            const result = await response.json();
+            showAlert(result.error || 'Error adding content', 'error');
+        }
+    } catch (error) {
+        showAlert('Network error', 'error');
+    }
+});
+
+// AI Generation
+document.getElementById('aiGenerationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await generateAIContent();
+});
+
+async function generateAIContent() {
+    if (!USER_ID) {
+        showAlert('Please log in to use AI generation', 'error');
+        return;
+    }
+    
+    const sourceMaterial = document.getElementById('aiSourceMaterial').value.trim();
+    const pdfFile = document.getElementById('aiPdfFile').files[0];
+    const imageFiles = document.getElementById('aiImages').files;
+    
+    // Validate that at least one input is provided
+    if (!sourceMaterial && !pdfFile && imageFiles.length === 0) {
+        showAlert('Please provide study material, upload a PDF, or select images.', 'error');
+        return;
+    }
+
+    const generateBtn = document.getElementById('generateBtn');
+    const originalText = generateBtn.textContent;
+    generateBtn.textContent = 'Generating...';
+    generateBtn.disabled = true;
+
+    // Create FormData for file uploads
+    const formData = new FormData();
+    formData.append('source_material', sourceMaterial);
+    formData.append('generation_type', document.getElementById('aiGenerationType').value);
+    formData.append('subject', document.getElementById('aiSubject').value);
+    formData.append('focus_areas', document.getElementById('aiFocusAreas').value);
+    formData.append('max_cards', document.getElementById('aiMaxCards').value);
+    formData.append('folder_id', document.getElementById('aiFolder').value || '0');
+    
+    // Add PDF file if selected
+    if (pdfFile) {
+        formData.append('pdf_file', pdfFile);
+    }
+    
+    // Add image files if selected
+    for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
+        formData.append('images', imageFiles[i]);
+    }
+
+    try {
+        const response = await fetch('/api/generate-content', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('aiResults').style.display = 'block';
+            document.getElementById('aiResultsContent').innerHTML = `
+                <div class="alert alert-success">
+                    <strong>Successfully generated ${result.cards_generated} items!</strong>
+                </div>
+                <div style="margin-top: 15px;">
+                    <h4>Preview of Generated Content:</h4>
+                    ${result.cards.slice(0, 3).map((card, index) => `
+                        <div class="info-box" style="padding: 10px; margin: 5px 0; border-radius: 6px;">
+                            <strong>${card.content_type.toUpperCase()}:</strong> ${card.front}
+                            ${card.back ? `<br><em>Answer: ${card.back}</em>` : ''}
+                        </div>
+                    `).join('')}
+                    ${result.cards.length > 3 ? `<p><em>... and ${result.cards.length - 3} more items</em></p>` : ''}
+                </div>
+                <p style="color: #666; font-size: 14px; margin-top: 15px;">
+                    All generated content has been added to your collection and is ready for spaced repetition learning!
+                </p>
+            `;
+            
+            loadCards();
+            loadStats();
+            loadFolders();
+        } else {
+            if (response.status === 503) {
+                showAlert('AI content generation is not configured on the server. Please set up an OpenAI API key to use this feature.', 'error');
+            } else {
+                showAlert(`Error generating content: ${result.error || 'Unknown error'}`, 'error');
+            }
+        }
+    } catch (error) {
+        showAlert(`Network error: ${error.message}`, 'error');
+    } finally {
+        generateBtn.textContent = originalText;
+        generateBtn.disabled = false;
+    }
+}
+
+// Swipe to delete functionality
+function addSwipeToDelete(cardElement, cardId) {
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+    let startTime = 0;
+    
+    const swipeThreshold = 100; // Minimum distance to trigger delete
+    const timeThreshold = 500; // Maximum time for swipe gesture (ms)
+    
+    // Touch events for mobile
+    cardElement.addEventListener('touchstart', handleStart, { passive: false });
+    cardElement.addEventListener('touchmove', handleMove, { passive: false });
+    cardElement.addEventListener('touchend', handleEnd, { passive: false });
+    
+    // Mouse events for desktop
+    cardElement.addEventListener('mousedown', handleStart);
+    cardElement.addEventListener('mousemove', handleMove);
+    cardElement.addEventListener('mouseup', handleEnd);
+    cardElement.addEventListener('mouseleave', handleEnd);
+    
+    function handleStart(e) {
+        e.preventDefault();
+        isDragging = true;
+        startTime = Date.now();
+        
+        if (e.type === 'touchstart') {
+            startX = e.touches[0].clientX;
+        } else {
+            startX = e.clientX;
+            cardElement.style.cursor = 'grabbing';
+        }
+        
+        currentX = startX;
+        cardElement.style.transition = 'none';
+    }
+    
+    function handleMove(e) {
+        if (!isDragging) return;
+        
+        e.preventDefault();
+        
+        if (e.type === 'touchmove') {
+            currentX = e.touches[0].clientX;
+        } else {
+            currentX = e.clientX;
+        }
+        
+        const deltaX = currentX - startX;
+        
+        // Only allow left swipe (negative deltaX)
+        if (deltaX < 0) {
+            const translateX = Math.max(deltaX, -200); // Limit swipe distance
+            cardElement.style.transform = `translateX(${translateX}px)`;
+            
+            // Show delete indicator based on swipe distance
+            const indicator = cardElement.querySelector('.swipe-delete-indicator');
+            const opacity = Math.min(Math.abs(deltaX) / swipeThreshold, 1);
+            indicator.style.opacity = opacity;
+            
+            // Change background color as user swipes
+            if (Math.abs(deltaX) > swipeThreshold) {
+                cardElement.style.backgroundColor = '#ffebee'; // Light red
+            } else {
+                cardElement.style.backgroundColor = '';
+            }
+        }
+    }
+    
+    function handleEnd(e) {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        cardElement.style.cursor = 'grab';
+        cardElement.style.transition = 'transform 0.3s ease, background-color 0.3s ease';
+        
+        const deltaX = currentX - startX;
+        const swipeTime = Date.now() - startTime;
+        const swipeSpeed = Math.abs(deltaX) / swipeTime;
+        
+        // Check if swipe meets criteria for deletion
+        const shouldDelete = (Math.abs(deltaX) > swipeThreshold && deltaX < 0) || 
+                           (swipeSpeed > 0.5 && deltaX < -50); // Fast swipe with shorter distance
+        
+        if (shouldDelete) {
+            // Animate card out
+            cardElement.style.transform = 'translateX(-100%)';
+            cardElement.style.opacity = '0';
+            
+            // Delete card after animation
+            setTimeout(() => {
+                deleteCardDirectly(cardId);
+            }, 300);
+        } else {
+            // Snap back to original position
+            cardElement.style.transform = 'translateX(0)';
+            cardElement.style.backgroundColor = '';
+            const indicator = cardElement.querySelector('.swipe-delete-indicator');
+            indicator.style.opacity = '0';
+        }
+    }
+}
+
+// Direct card deletion without confirmation modal
+async function deleteCardDirectly(cardId) {
+    try {
+        const response = await fetch(`/api/cards/${cardId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        if (response.ok) {
+            showAlert('Card deleted', 'success');
+            loadCards();
+            loadStats();
+        } else {
+            const result = await response.json();
+            showAlert(`Error: ${result.error}`, 'error');
+            // Reload cards to restore the UI
+            loadCards();
+        }
+    } catch (error) {
+        showAlert(`Network error: ${error.message}`, 'error');
+        // Reload cards to restore the UI
+        loadCards();
+    }
+}
+
+// Helper function to create card elements
+function createCardElement(card) {
+    const cardDiv = document.createElement('div');
+    cardDiv.className = 'card-item swipeable-card';
+    cardDiv.dataset.cardId = card.id;
+    cardDiv.style.cssText = `
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        border-left: 4px solid var(--primary-color);
+        position: relative;
+        transition: transform 0.3s ease, background-color 0.3s ease;
+        cursor: grab;
+    `;
+    
+    cardDiv.innerHTML = `
+        <div class="card-content" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="flex: 1;">
+                <span style="font-size: 12px; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 8px;">
+                    ${card.content_type.toUpperCase()}${card.is_ai_generated ? ' (AI)' : ''}
+                </span>
+                ${card.folder_name ? `<span style="font-size: 12px; background: var(--secondary-color); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 8px; margin-left: 5px;">📁 ${card.folder_name}</span>` : ''}
+                <div style="font-weight: 600; margin-bottom: 5px;">${card.front}</div>
+                ${card.back ? `<div style="color: var(--text-secondary); margin-bottom: 8px;">${card.back}</div>` : ''}
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    ${card.subject ? `Subject: ${card.subject} | ` : ''}
+                    Next review: ${new Date(card.next_review).toLocaleDateString()}
+                    ${card.is_due ? ' <span style="color: var(--success-color); font-weight: bold;">(DUE)</span>' : ''}
+                </div>
+            </div>
+            <div style="margin-left: 15px;">
+                <button onclick="deleteItem('card', ${card.id}, 'this card')" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">Delete</button>
+            </div>
+        </div>
+        <div class="swipe-delete-indicator" style="
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #dc3545;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        ">🗑️ Delete</div>
+    `;
+    
+    // Add swipe functionality
+    addSwipeToDelete(cardDiv, card.id);
+    
+    return cardDiv;
+}
+
+// Load cards (only unorganized cards at root level)
+async function loadCards() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch(`/users/${USER_ID}/cards`);
+        const data = await response.json();
+        
+        const cardsList = document.getElementById('cardsList');
+        cardsList.innerHTML = '';
+        
+        // Filter to only show cards without folders (unorganized)
+        const unorganizedCards = data.cards.filter(card => !card.folder_id);
+        
+        if (unorganizedCards.length === 0) {
+            cardsList.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No unorganized cards. All cards are in folders!</p>';
+            return;
+        }
+        
+        unorganizedCards.forEach(card => {
+            const cardDiv = createCardElement(card);
+            cardsList.appendChild(cardDiv);
+        });
+    } catch (error) {
+        console.error('Error loading cards:', error);
+        showAlert('Error loading cards. Please refresh the page.', 'error');
+    }
+}
+
+// Load folders
+async function loadFolders() {
+    console.log('loadFolders: Starting to load folders for parent:', currentFolderId);
+    try {
+        const url = currentFolderId ? `/api/folders?parent_id=${currentFolderId}` : '/api/folders';
+        const response = await fetch(url);
+        console.log('loadFolders: API response status:', response.status);
+        
+        if (!response.ok) {
+            console.error('loadFolders: API response not ok:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('loadFolders: Error response:', errorText);
+            showAlert('Error loading folders. Please refresh the page.', 'error');
+            return;
+        }
+        
+        const data = await response.json();
+        console.log('loadFolders: Received data:', data);
+        
+        const foldersContainer = document.getElementById('foldersContainer');
+        if (!foldersContainer) {
+            console.error('loadFolders: foldersContainer element not found');
+            return;
+        }
+        
+        foldersContainer.innerHTML = '';
+        
+        if (!data.folders || data.folders.length === 0) {
+            console.log('loadFolders: No folders found, showing empty message');
+            const emptyMessage = currentFolderId ? 
+                'No subfolders in this folder.' : 
+                'No folders yet. Create your first folder to organize your cards!';
+            foldersContainer.innerHTML = `<p style="color: var(--text-secondary); text-align: center; padding: 20px;">${emptyMessage}</p>`;
+            return;
+        }
+        
+        console.log('loadFolders: Creating folder elements for', data.folders.length, 'folders');
+        data.folders.forEach((folder, index) => {
+            console.log('loadFolders: Processing folder', index, folder.name);
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'card-item folder-item';
+            folderDiv.dataset.folderId = folder.id;
+            folderDiv.style.cssText = `
+                padding: 15px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                border-left: 4px solid ${folder.color};
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                transition: background-color 0.2s ease;
+            `;
+            
+            // Add hover effect
+            folderDiv.addEventListener('mouseenter', () => {
+                folderDiv.style.backgroundColor = 'var(--hover-color)';
+            });
+            folderDiv.addEventListener('mouseleave', () => {
+                folderDiv.style.backgroundColor = '';
+            });
+            
+            // Add click handler to navigate into folder
+            folderDiv.addEventListener('click', (e) => {
+                // Don't navigate if clicking on delete button
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                    return;
+                }
+                navigateToFolder(folder.id, folder.name);
+            });
+            
+            folderDiv.innerHTML = `
+                <div>
+                    <div class="folder-name" style="font-weight: 600; margin-bottom: 5px;">📁 ${folder.name}</div>
+                    ${folder.description ? `<div style="color: var(--text-secondary); margin-bottom: 8px;">${folder.description}</div>` : ''}
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        ${folder.card_count} card${folder.card_count !== 1 ? 's' : ''} • ${folder.total_card_count} total
+                    </div>
+                </div>
+                <div onclick="event.stopPropagation();">
+                    <button onclick="deleteItem('folder', ${folder.id}, '${folder.name}')" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">Delete</button>
+                </div>
+            `;
+            foldersContainer.appendChild(folderDiv);
+        });
+        console.log('loadFolders: Successfully loaded', data.folders.length, 'folders');
+    } catch (error) {
+        console.error('loadFolders: Exception occurred:', error);
+        showAlert('Error loading folders. Please refresh the page.', 'error');
+    }
+}
+
+async function loadFoldersIntoSelect() {
+    try {
+        const response = await fetch('/api/folders/all');
+        const data = await response.json();
+        
+        // Update all folder select elements
+        const selects = ['cardFolder', 'aiFolder'];
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                // Clear existing options except the first one
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+                
+                // Add folder options with path indication
+                data.folders.forEach(folder => {
+                    const option = document.createElement('option');
+                    option.value = folder.id;
+                    const pathStr = folder.path ? folder.path.join(' > ') : folder.name;
+                    option.textContent = `📁 ${pathStr}`;
+                    select.appendChild(option);
+                });
+            }
+        });
+    } catch (error) {
+        console.error('Error loading folders into select:', error);
+    }
+}
+
+// Notification settings functions
+async function loadNotificationSettings() {
+    try {
+        // Load current user settings
+        const userResponse = await fetch('/api/auth/me');
+        const userData = await userResponse.json();
+        const user = userData.user;
+        
+        // Set current settings
+        document.getElementById('notifRecallEnabled').checked = user.recall_enabled !== false;
+        document.getElementById('notifFrequency').value = user.recall_frequency_minutes || 30;
+        
+        // Set content selection
+        if (user.recall_folders) {
+            document.getElementById('selectedContent').checked = true;
+            document.getElementById('folderSelectionContainer').style.display = 'block';
+        } else {
+            document.getElementById('allContent').checked = true;
+            document.getElementById('folderSelectionContainer').style.display = 'none';
+        }
+        
+        // Load folders for selection
+        await loadNotificationFolders(user.recall_folders);
+        
+        // Update options visibility
+        toggleNotificationOptions();
+        
+    } catch (error) {
+        console.error('Error loading notification settings:', error);
+        showNotificationAlert('Error loading settings', 'error');
+    }
+}
+
+async function loadNotificationFolders(selectedFolderIds) {
+    try {
+        const response = await fetch('/api/folders/all');
+        const data = await response.json();
+        
+        const folderList = document.getElementById('notificationFolderList');
+        folderList.innerHTML = '';
+        
+        if (data.folders.length === 0) {
+            folderList.innerHTML = '<p style="color: var(--text-secondary);">No folders created yet.</p>';
+            return;
+        }
+        
+        const selectedIds = selectedFolderIds ? selectedFolderIds.split(',') : [];
+        
+        data.folders.forEach(folder => {
+            const label = document.createElement('label');
+            label.style.cssText = 'display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; padding: 8px; border-radius: 4px; transition: background-color 0.2s;';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'notificationFolderCheckbox';
+            checkbox.value = folder.id;
+            checkbox.checked = selectedIds.includes(folder.id.toString());
+            checkbox.style.cssText = 'width: auto; margin-right: 10px;';
+            
+            const folderInfo = document.createElement('div');
+            folderInfo.innerHTML = `
+                <div style="font-weight: 500; color: ${folder.color};">📁 ${folder.name}</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">${folder.card_count} cards</div>
+            `;
+            
+            label.appendChild(checkbox);
+            label.appendChild(folderInfo);
+            folderList.appendChild(label);
+            
+            // Add hover effect
+            label.addEventListener('mouseenter', () => {
+                label.style.backgroundColor = 'var(--hover-color)';
+            });
+            label.addEventListener('mouseleave', () => {
+                label.style.backgroundColor = '';
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error loading notification folders:', error);
+    }
+}
+
+function toggleNotificationOptions() {
+    const enabled = document.getElementById('notifRecallEnabled').checked;
+    document.getElementById('notificationOptions').style.display = enabled ? 'block' : 'none';
+}
+
+function showNotificationAlert(message, type) {
+    const alertDiv = document.getElementById('notificationAlert');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    alertDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        alertDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Handle content selection radio buttons
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'contentSelection') {
+        const folderContainer = document.getElementById('folderSelectionContainer');
+        if (e.target.value === 'selected') {
+            folderContainer.style.display = 'block';
+        } else {
+            folderContainer.style.display = 'none';
+        }
+    }
+});
+
+// Notification settings form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const notificationForm = document.getElementById('notificationSettingsForm');
+    if (notificationForm) {
+        notificationForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const enabled = document.getElementById('notifRecallEnabled').checked;
+            const frequency = parseInt(document.getElementById('notifFrequency').value);
+            
+            let recallFolders = null;
+            if (document.getElementById('selectedContent').checked) {
+                const selectedFolders = [];
+                document.querySelectorAll('.notificationFolderCheckbox:checked').forEach(checkbox => {
+                    selectedFolders.push(checkbox.value);
+                });
+                recallFolders = selectedFolders.join(',');
+            }
+            
+            const formData = {
+                recall_enabled: enabled,
+                recall_frequency_minutes: frequency,
+                recall_folders: recallFolders
+            };
+            
+            try {
+                const response = await fetch('/api/auth/profile', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    showNotificationAlert('Notification settings saved successfully!', 'success');
+                    setTimeout(() => {
+                        closeNotificationSettings();
+                    }, 1500);
+                } else {
+                    const result = await response.json();
+                    showNotificationAlert(result.error || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                showNotificationAlert('Network error. Please try again.', 'error');
+            }
+        });
+    }
+    
+    // Add event listener for notification enabled checkbox
+    const notifEnabledCheckbox = document.getElementById('notifRecallEnabled');
+    if (notifEnabledCheckbox) {
+        notifEnabledCheckbox.addEventListener('change', toggleNotificationOptions);
+    }
+});
+
+async function loadFolderManager() {
+    try {
+        const response = await fetch('/api/folders');
+        const data = await response.json();
+        
+        const content = document.getElementById('folderManagerContent');
+        content.innerHTML = '';
+        
+        if (data.folders.length === 0) {
+            content.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No folders yet. Create your first folder!</p>';
+            return;
+        }
+        
+        data.folders.forEach(folder => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'card-item';
+            folderDiv.style.cssText = `
+                padding: 15px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                border-left: 4px solid ${folder.color};
+            `;
+            
+            folderDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 5px;">📁 ${folder.name}</div>
+                        ${folder.description ? `<div style="color: var(--text-secondary); margin-bottom: 8px;">${folder.description}</div>` : ''}
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            ${folder.card_count} card${folder.card_count !== 1 ? 's' : ''} • Created ${new Date(folder.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                    <div>
+                        <button onclick="deleteItem('folder', ${folder.id}, '${folder.name}')" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">Delete</button>
+                    </div>
+                </div>
+            `;
+            content.appendChild(folderDiv);
+        });
+    } catch (error) {
+        console.error('Error loading folder manager:', error);
+        showAlert('Error loading folders. Please refresh.', 'error');
+    }
+}
+
+// Load stats
+async function loadStats() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch(`/users/${USER_ID}/stats`);
+        const stats = await response.json();
+        
+        document.getElementById('totalCards').textContent = stats.total_cards;
+        document.getElementById('dueCards').textContent = stats.due_cards;
+        document.getElementById('newCards').textContent = stats.new_cards;
+        document.getElementById('matureCards').textContent = stats.mature_cards;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        showAlert('Error loading statistics. Please refresh the page.', 'error');
+    }
+}
+
+// Utility functions
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Initialize - user is already authenticated via Flask session
+window.addEventListener('load', function() {
+    console.log('Page loaded, initializing...');
+    
+    // Get user ID from the template (passed from Flask)
+    {% if user %}
+    USER_ID = {{ user.id }};
+    console.log('User ID set to:', USER_ID);
+    
+    // Load data immediately without welcome message complications
+    console.log('Loading initial data...');
+    loadCards();
+    loadStats();
+    loadFolders();
+    loadFoldersIntoSelect();
+    {% else %}
+    console.log('No user found, redirecting to welcome page');
+    // Fallback - redirect to welcome page
+    window.location.href = '/welcome';
+    {% endif %}
+});
+
+// Create folder form submission
+document.getElementById('createFolderForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        name: document.getElementById('folderName').value,
+        description: document.getElementById('folderDescription').value,
+        color: document.getElementById('folderColor').value,
+        parent_folder_id: currentFolderId // Create in current folder
+    };
+
+    console.log('Creating folder with data:', formData);
+
+    try {
+        const response = await fetch('/api/folders', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        console.log('Folder creation response status:', response.status);
+        const result = await response.json();
+        console.log('Folder creation response:', result);
+
+        if (response.ok) {
+            showAlert('Folder created successfully!', 'success');
+            closeCreateFolder();
+            loadFolders();
+            loadFoldersIntoSelect();
+        } else {
+            showAlert(`Error: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Folder creation error:', error);
+        showAlert(`Network error: ${error.message}`, 'error');
+    }
+});
+
+// Delete confirmation
+function deleteItem(type, id, name) {
+    deleteType = type;
+    deleteId = id;
+    
+    const message = type === 'folder' 
+        ? `Are you sure you want to delete the folder "${name}"? All cards in this folder will be moved to "No Folder".`
+        : `Are you sure you want to delete this ${type}?`;
+    
+    document.getElementById('deleteMessage').textContent = message;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+// Confirm delete
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+    if (!deleteType || !deleteId) return;
+    
+    try {
+        let endpoint;
+        if (deleteType === 'folder') {
+            endpoint = `/api/folders/${deleteId}`;
+        } else if (deleteType === 'card') {
+            endpoint = `/api/cards/${deleteId}`;
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                delete_cards: false // Move cards to root instead of deleting them
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showAlert(`${deleteType.charAt(0).toUpperCase() + deleteType.slice(1)} deleted successfully!`, 'success');
+            closeDeleteModal();
+            
+            // Refresh appropriate content
+            if (deleteType === 'folder') {
+                loadFolders();
+                loadFoldersIntoSelect();
+                loadFolderManager();
+            } else if (deleteType === 'card') {
+                loadCards();
+                loadStats();
+            }
+        } else {
+            showAlert(`Error: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        showAlert(`Network error: ${error.message}`, 'error');
+    }
+    
+    // Reset delete variables
+    deleteType = null;
+    deleteId = null;
+});
+
+</script>
+{% endblock %}

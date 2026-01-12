@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JavaScript Syntax Test</title>
+</head>
+<body>
+    <h1>JavaScript Syntax Test</h1>
+    <div id="test-output"></div>
+    
+    <script>
+        // Test the key functions from index.html
+        let USER_ID = 1;
+        let currentFolderId = null;
+        let navigationPath = [];
+        let deleteType = null;
+        let deleteId = null;
+
+        // Modal functions
+        function showAddCard() {
+            console.log('showAddCard called');
+        }
+
+        function closeAddCard() {
+            console.log('closeAddCard called');
+        }
+
+        function showAIGeneration() {
+            console.log('showAIGeneration called');
+        }
+
+        function closeAIModal() {
+            console.log('closeAIModal called');
+        }
+
+        // Navigation functions
+        function navigateToRoot() {
+            currentFolderId = null;
+            navigationPath = [];
+            console.log('navigateToRoot called');
+        }
+
+        function navigateToFolder(folderId, folderName) {
+            console.log('navigateToFolder called:', folderId, folderName);
+        }
+
+        // Test async function
+        async function loadFolders() {
+            console.log('loadFolders called');
+            try {
+                // Simulate API call
+                const response = { ok: true };
+                if (response.ok) {
+                    console.log('loadFolders: Success simulation');
+                }
+            } catch (error) {
+                console.error('loadFolders error:', error);
+            }
+        }
+
+        // Test the functions
+        console.log('Testing JavaScript functions...');
+        showAddCard();
+        showAIGeneration();
+        navigateToRoot();
+        navigateToFolder(1, 'Test Folder');
+        loadFolders();
+        
+        document.getElementById('test-output').innerHTML = 'JavaScript syntax test completed. Check console for results.';
+    </script>
+</body>
+</html>

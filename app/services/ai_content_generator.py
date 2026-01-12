@@ -1,0 +1,465 @@
+"""
+Improved AI Content Generation Service with robust prompts and parsing
+"""
+from openai import OpenAI
+import re
+import base64
+import PyPDF2
+import io
+from PIL import Image
+from typing import List, Dict, Any, Optional
+from app.config import Config
+
+class AIContentGenerator:
+    """Enhanced service for generating flashcards and information pieces using AI"""
+    
+    def __init__(self):
+        self.api_key = Config.OPENAI_API_KEY
+        self.client = OpenAI(api_key=self.api_key) if self.api_key else None
+    
+    def is_available(self):
+        """Check if AI generation is available"""
+        return bool(self.api_key and self.client)
+    
+    def extract_text_from_pdf(self, pdf_content: bytes) -> str:
+        """Extract text from PDF content with fallback handling"""
+        try:
+            pdf_file = io.BytesIO(pdf_content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            text = ""
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+            
+            return text.strip()
+        except Exception as e:
+            # Fallback: try to decode as text for invalid PDFs
+            try:
+                text_content = pdf_content.decode('utf-8', errors='ignore')
+                if text_content.strip():
+                    return text_content.strip()
+            except:
+                pass
+            
+            raise Exception(f"Failed to extract text from PDF: {str(e)}")
+    
+    def encode_image(self, image_content: bytes) -> str:
+        """Encode image to base64 for OpenAI API with optimization"""
+        try:
+            image = Image.open(io.BytesIO(image_content))
+            
+            # Convert to RGB if necessary
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Resize if too large (max 2048x2048 for GPT-4 Vision)
+            max_size = 2048
+            if image.width > max_size or image.height > max_size:
+                image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            
+            # Convert back to bytes
+            img_buffer = io.BytesIO()
+            image.save(img_buffer, format='JPEG', quality=85)
+            img_buffer.seek(0)
+            
+            return base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        except Exception as e:
+            raise Exception(f"Failed to process image: {str(e)}")
+    
+    def generate_flashcards(self, source_material: str, subject: str = None, 
+                          max_cards: int = 10, focus_areas: List[str] = None,
+                          images: List[bytes] = None, pdf_content: bytes = None) -> List[Dict[str, Any]]:
+        """Generate flashcards with enhanced prompting"""
+        if not self.is_available():
+            raise Exception("OpenAI API key not configured")
+        
+        # Process additional content
+        full_content = source_material
+        if pdf_content:
+            pdf_text = self.extract_text_from_pdf(pdf_content)
+            full_content += f"\n\nPDF Content:\n{pdf_text}"
+        
+        prompt = self._build_flashcard_prompt(full_content, subject, max_cards, focus_areas)
+        
+        try:
+            messages = [
+                {
+                    "role": "system", 
+                    "content": "You are an expert educational content creator specializing in active recall and spaced repetition. You create high-quality, testable flashcards that optimize learning retention. Always follow the exact formatting requirements provided."
+                },
+                {"role": "user", "content": [{"type": "text", "text": prompt}]}
+            ]
+            
+            # Add images if provided
+            if images:
+                for image_content in images[:5]:  # Limit to 5 images
+                    try:
+                        encoded_image = self.encode_image(image_content)
+                        messages[1]["content"].append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{encoded_image}",
+                                "detail": "high"
+                            }
+                        })
+                    except Exception as e:
+                        print(f"Warning: Failed to process image: {e}")
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",  # Using the correct model name
+                messages=messages,
+                max_tokens=2500,
+                temperature=0.3,  # Lower temperature for more consistent formatting
+                presence_penalty=0.1,
+                frequency_penalty=0.1
+            )
+            
+            content = response.choices[0].message.content
+            return self._parse_flashcards(content, max_cards)
+            
+        except Exception as e:
+            raise Exception(f"Failed to generate flashcards: {str(e)}")
+    
+    def generate_information_pieces(self, source_material: str, subject: str = None,
+                                  max_items: int = 10, focus_areas: List[str] = None,
+                                  images: List[bytes] = None, pdf_content: bytes = None) -> List[Dict[str, Any]]:
+        """Generate information pieces with enhanced prompting"""
+        if not self.is_available():
+            raise Exception("OpenAI API key not configured")
+        
+        # Process additional content
+        full_content = source_material
+        if pdf_content:
+            pdf_text = self.extract_text_from_pdf(pdf_content)
+            full_content += f"\n\nPDF Content:\n{pdf_text}"
+        
+        prompt = self._build_information_prompt(full_content, subject, max_items, focus_areas)
+        
+        try:
+            messages = [
+                {
+                    "role": "system", 
+                    "content": "You are an expert educational content creator specializing in information retention and micro-learning. You extract the most important facts, formulas, and concepts for spaced repetition learning. Always follow the exact formatting requirements provided."
+                },
+                {"role": "user", "content": [{"type": "text", "text": prompt}]}
+            ]
+            
+            # Add images if provided
+            if images:
+                for image_content in images[:5]:
+                    try:
+                        encoded_image = self.encode_image(image_content)
+                        messages[1]["content"].append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{encoded_image}",
+                                "detail": "high"
+                            }
+                        })
+                    except Exception as e:
+                        print(f"Warning: Failed to process image: {e}")
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=2000,
+                temperature=0.3,
+                presence_penalty=0.1,
+                frequency_penalty=0.1
+            )
+            
+            content = response.choices[0].message.content
+            return self._parse_information_pieces(content, max_items)
+            
+        except Exception as e:
+            raise Exception(f"Failed to generate information pieces: {str(e)}")
+    
+    def generate_mixed_content(self, source_material: str, subject: str = None,
+                             max_items: int = 10, focus_areas: List[str] = None,
+                             images: List[bytes] = None, pdf_content: bytes = None) -> List[Dict[str, Any]]:
+        """Generate mixed content with enhanced prompting"""
+        if not self.is_available():
+            raise Exception("OpenAI API key not configured")
+        
+        # Process additional content
+        full_content = source_material
+        if pdf_content:
+            pdf_text = self.extract_text_from_pdf(pdf_content)
+            full_content += f"\n\nPDF Content:\n{pdf_text}"
+        
+        prompt = self._build_mixed_prompt(full_content, subject, max_items, focus_areas)
+        
+        try:
+            messages = [
+                {
+                    "role": "system", 
+                    "content": "You are an expert educational content creator specializing in active recall and spaced repetition. You create both testable flashcards and memorable information pieces for optimal learning. Always follow the exact formatting requirements provided and generate the exact number of items requested."
+                },
+                {"role": "user", "content": [{"type": "text", "text": prompt}]}
+            ]
+            
+            # Add images if provided
+            if images:
+                for image_content in images[:5]:
+                    try:
+                        encoded_image = self.encode_image(image_content)
+                        messages[1]["content"].append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{encoded_image}",
+                                "detail": "high"
+                            }
+                        })
+                    except Exception as e:
+                        print(f"Warning: Failed to process image: {e}")
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=3000,
+                temperature=0.3,
+                presence_penalty=0.1,
+                frequency_penalty=0.1
+            )
+            
+            content = response.choices[0].message.content
+            return self._parse_mixed_content(content, max_items)
+            
+        except Exception as e:
+            raise Exception(f"Failed to generate mixed content: {str(e)}")
+    
+    def _build_flashcard_prompt(self, source_material: str, subject: str, max_cards: int, focus_areas: List[str]) -> str:
+        """Build enhanced prompt for flashcard generation"""
+        focus_instruction = ""
+        if focus_areas:
+            focus_instruction = f"\n- FOCUS AREAS: Prioritize these specific topics: {', '.join(focus_areas)}"
+        
+        subject_instruction = f"\n- SUBJECT CONTEXT: {subject}" if subject else ""
+        
+        prompt = f"""TASK: Create exactly {max_cards} high-quality flashcards for active recall learning.
+
+CRITICAL FORMATTING REQUIREMENTS:
+- Use EXACTLY this format: Q1: [question] followed by A1: [answer]
+- Number each Q/A pair sequentially (Q1:/A1:, Q2:/A2:, etc.)
+- Put each question and answer on separate lines
+- Do not include any other text, explanations, or formatting
+- Generate exactly {max_cards} flashcards, no more, no less
+
+CONTENT GUIDELINES:{subject_instruction}{focus_instruction}
+- Create specific, testable questions that require recall
+- Keep answers concise but complete (1-3 sentences maximum)
+- Focus on the most important concepts for long-term retention
+- Vary question types: definitions, applications, comparisons, cause-effect, examples
+- Ensure questions test understanding, not just memorization
+- Make each flashcard standalone and clear
+- If images are provided, reference visual elements when relevant
+- Extract key information from any PDF content provided
+- Prioritize information that benefits from spaced repetition
+
+EXAMPLE FORMAT:
+Q1: What is the primary function of mitochondria in cells?
+A1: Mitochondria produce ATP (energy) for cellular processes through cellular respiration.
+
+Q2: Which cellular organelle is known as the "powerhouse of the cell"?
+A2: The mitochondria, because it generates most of the cell's energy in the form of ATP.
+
+STUDY MATERIAL TO PROCESS:
+{source_material}
+
+GENERATE EXACTLY {max_cards} FLASHCARDS NOW:"""
+        return prompt
+    
+    def _build_information_prompt(self, source_material: str, subject: str, max_items: int, focus_areas: List[str]) -> str:
+        """Build enhanced prompt for information piece generation"""
+        focus_instruction = ""
+        if focus_areas:
+            focus_instruction = f"\n- FOCUS AREAS: Prioritize these specific topics: {', '.join(focus_areas)}"
+        
+        subject_instruction = f"\n- SUBJECT CONTEXT: {subject}" if subject else ""
+        
+        prompt = f"""TASK: Extract exactly {max_items} key information pieces for spaced repetition learning.
+
+CRITICAL FORMATTING REQUIREMENTS:
+- Use EXACTLY this format: INFO1: [information]
+- Number each item sequentially (INFO1:, INFO2:, INFO3:, etc.)
+- Put each information piece on a separate line
+- Do not include any other text, explanations, or formatting
+- Generate exactly {max_items} information pieces, no more, no less
+
+CONTENT GUIDELINES:{subject_instruction}{focus_instruction}
+- Extract the most important facts, formulas, definitions, or key concepts
+- Make each piece standalone and memorable
+- Keep each piece concise (1-2 sentences maximum)
+- Focus on information that benefits from repetition and recall
+- Include formulas, dates, definitions, key principles, important statistics
+- Prioritize factual information over explanatory content
+- Reference visual elements from images when relevant
+- Include important details from any PDF content provided
+- Choose information that students commonly need to memorize
+
+EXAMPLE FORMAT:
+INFO1: The speed of light in a vacuum is 299,792,458 meters per second.
+INFO2: DNA stands for Deoxyribonucleic Acid and contains genetic instructions for all living organisms.
+INFO3: The mitochondria is known as the "powerhouse of the cell" because it produces ATP energy.
+
+STUDY MATERIAL TO PROCESS:
+{source_material}
+
+EXTRACT EXACTLY {max_items} INFORMATION PIECES NOW:"""
+        return prompt
+    
+    def _build_mixed_prompt(self, source_material: str, subject: str, max_items: int, focus_areas: List[str]) -> str:
+        """Build enhanced prompt for mixed content generation"""
+        focus_instruction = ""
+        if focus_areas:
+            focus_instruction = f"\n- FOCUS AREAS: Prioritize these specific topics: {', '.join(focus_areas)}"
+        
+        subject_instruction = f"\n- SUBJECT CONTEXT: {subject}" if subject else ""
+        
+        flashcard_count = max_items // 2
+        info_count = max_items - flashcard_count
+        
+        prompt = f"""TASK: Create exactly {max_items} learning items: {flashcard_count} flashcards and {info_count} information pieces.
+
+CRITICAL FORMATTING REQUIREMENTS:
+- Use EXACTLY these formats:
+  * Flashcards: Q1: [question] followed by A1: [answer]
+  * Information: INFO1: [information]
+- Number each item sequentially
+- Put each item on a separate line
+- Do not include any other text, explanations, or formatting
+- Generate exactly {flashcard_count} Q/A pairs and {info_count} INFO items
+- Total items must equal exactly {max_items}
+
+CONTENT GUIDELINES:{subject_instruction}{focus_instruction}
+- For flashcards: Create specific, testable questions with concise answers
+- For information: Extract key facts, formulas, definitions, or concepts
+- Focus on the most important concepts for active recall
+- Vary question types: definitions, applications, comparisons, cause-effect
+- Make information pieces standalone and memorable (1-2 sentences max)
+- Prioritize content that benefits from spaced repetition
+- Reference visual elements from images when relevant
+- Extract key information from any PDF content provided
+
+EXAMPLE FORMAT:
+Q1: What is the primary function of mitochondria in cells?
+A1: Mitochondria produce ATP (energy) for cellular processes through cellular respiration.
+
+Q2: Which organelle is known as the "powerhouse of the cell"?
+A2: The mitochondria, because it generates most of the cell's energy in the form of ATP.
+
+INFO1: The speed of light in a vacuum is 299,792,458 meters per second.
+INFO2: DNA stands for Deoxyribonucleic Acid and contains genetic instructions.
+
+STUDY MATERIAL TO PROCESS:
+{source_material}
+
+GENERATE EXACTLY {flashcard_count} FLASHCARDS AND {info_count} INFORMATION PIECES NOW:"""
+        return prompt
+    
+    def _parse_flashcards(self, content: str, max_cards: int) -> List[Dict[str, Any]]:
+        """Parse flashcards with robust error handling and validation"""
+        flashcards = []
+        lines = [line.strip() for line in content.strip().split('\n') if line.strip()]
+        
+        current_question = None
+        
+        for line in lines:
+            # Match question pattern (Q1:, Q2:, etc.)
+            q_match = re.match(r'^Q(\d+):\s*(.+)$', line, re.IGNORECASE)
+            if q_match:
+                current_question = q_match.group(2).strip()
+                continue
+            
+            # Match answer pattern (A1:, A2:, etc.)
+            a_match = re.match(r'^A(\d+):\s*(.+)$', line, re.IGNORECASE)
+            if a_match and current_question:
+                answer = a_match.group(2).strip()
+                
+                flashcards.append({
+                    'content_type': 'flashcard',
+                    'front': current_question,
+                    'back': answer
+                })
+                
+                current_question = None
+                
+                # Stop if we've reached the max
+                if len(flashcards) >= max_cards:
+                    break
+        
+        return flashcards[:max_cards]  # Ensure we don't exceed the limit
+    
+    def _parse_information_pieces(self, content: str, max_items: int) -> List[Dict[str, Any]]:
+        """Parse information pieces with robust error handling and validation"""
+        info_pieces = []
+        lines = [line.strip() for line in content.strip().split('\n') if line.strip()]
+        
+        for line in lines:
+            # Match info pattern (INFO1:, INFO2:, etc.)
+            info_match = re.match(r'^INFO(\d+):\s*(.+)$', line, re.IGNORECASE)
+            if info_match:
+                info_content = info_match.group(2).strip()
+                
+                info_pieces.append({
+                    'content_type': 'information',
+                    'front': info_content,
+                    'back': None
+                })
+                
+                # Stop if we've reached the max
+                if len(info_pieces) >= max_items:
+                    break
+        
+        return info_pieces[:max_items]  # Ensure we don't exceed the limit
+    
+    def _parse_mixed_content(self, content: str, max_items: int) -> List[Dict[str, Any]]:
+        """Parse mixed content with robust error handling and validation"""
+        items = []
+        lines = [line.strip() for line in content.strip().split('\n') if line.strip()]
+        
+        current_question = None
+        
+        for line in lines:
+            # Match question pattern (Q1:, Q2:, etc.)
+            q_match = re.match(r'^Q(\d+):\s*(.+)$', line, re.IGNORECASE)
+            if q_match:
+                current_question = q_match.group(2).strip()
+                continue
+            
+            # Match answer pattern (A1:, A2:, etc.)
+            a_match = re.match(r'^A(\d+):\s*(.+)$', line, re.IGNORECASE)
+            if a_match and current_question:
+                answer = a_match.group(2).strip()
+                
+                items.append({
+                    'content_type': 'flashcard',
+                    'front': current_question,
+                    'back': answer
+                })
+                
+                current_question = None
+                
+                # Stop if we've reached the max
+                if len(items) >= max_items:
+                    break
+                continue
+            
+            # Match information pattern (INFO1:, INFO2:, etc.)
+            info_match = re.match(r'^INFO(\d+):\s*(.+)$', line, re.IGNORECASE)
+            if info_match:
+                info_content = info_match.group(2).strip()
+                
+                items.append({
+                    'content_type': 'information',
+                    'front': info_content,
+                    'back': None
+                })
+                
+                # Stop if we've reached the max
+                if len(items) >= max_items:
+                    break
+        
+        return items[:max_items]  # Ensure we don't exceed the limit

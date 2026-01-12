@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Active Recall{% endblock %}
+{% block page_title %}Learning Analytics{% endblock %}
+
+{% block content %}
+<!-- Overview Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number" id="totalCards">0</div>
+        <div class="stat-label">Total Cards</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="dueCards">0</div>
+        <div class="stat-label">Due for Review</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="newCards">0</div>
+        <div class="stat-label">New Cards</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="learningCards">0</div>
+        <div class="stat-label">Learning</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="matureCards">0</div>
+        <div class="stat-label">Mature Cards</div>
+    </div>
+</div>
+
+<!-- Content Breakdown -->
+<div class="card">
+    <h2>Content Breakdown</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+        <div>
+            <h3>By Content Type</h3>
+            <div id="contentTypeBreakdown"></div>
+        </div>
+        <div>
+            <h3>By Subject</h3>
+            <div id="subjectBreakdown"></div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Generation History -->
+<div class="card">
+    <h2>AI Generation History</h2>
+    <div id="generationHistory" style="margin-top: 20px;"></div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+    <h2>Recent Cards</h2>
+    <div id="recentCards" style="margin-top: 20px;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let USER_ID = null;
+
+async function loadAnalytics() {
+    if (!USER_ID) return;
+    
+    try {
+        // Load basic stats
+        const statsResponse = await fetch(`/users/${USER_ID}/stats`);
+        const stats = await statsResponse.json();
+        
+        document.getElementById('totalCards').textContent = stats.total_cards;
+        document.getElementById('dueCards').textContent = stats.due_cards;
+        document.getElementById('newCards').textContent = stats.new_cards;
+        document.getElementById('learningCards').textContent = stats.learning_cards;
+        document.getElementById('matureCards').textContent = stats.mature_cards;
+        
+        // Load cards for detailed analysis
+        const cardsResponse = await fetch(`/users/${USER_ID}/cards`);
+        const cardsData = await cardsResponse.json();
+        
+        analyzeContentTypes(cardsData.cards);
+        analyzeSubjects(cardsData.cards);
+        showRecentCards(cardsData.cards);
+        
+        // Load AI generation history
+        loadGenerationHistory();
+        
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        if (error.message.includes('401')) {
+            window.location.href = '/login';
+        }
+    }
+}
+
+function analyzeContentTypes(cards) {
+    const breakdown = cards.reduce((acc, card) => {
+        const type = card.content_type;
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const container = document.getElementById('contentTypeBreakdown');
+    container.innerHTML = '';
+    
+    Object.entries(breakdown).forEach(([type, count]) => {
+        const item = document.createElement('div');
+        item.className = 'info-box';
+        item.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+        `;
+        item.innerHTML = `
+            <span style="text-transform: capitalize;">${type}</span>
+            <span style="font-weight: bold; color: var(--primary-color);">${count}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function analyzeSubjects(cards) {
+    const breakdown = cards.reduce((acc, card) => {
+        const subject = card.subject || 'No Subject';
+        acc[subject] = (acc[subject] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const container = document.getElementById('subjectBreakdown');
+    container.innerHTML = '';
+    
+    // Sort by count and show top 10
+    const sortedSubjects = Object.entries(breakdown)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10);
+    
+    sortedSubjects.forEach(([subject, count]) => {
+        const item = document.createElement('div');
+        item.className = 'info-box';
+        item.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+        `;
+        item.innerHTML = `
+            <span>${subject}</span>
+            <span style="font-weight: bold; color: var(--primary-color);">${count}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function showRecentCards(cards) {
+    const container = document.getElementById('recentCards');
+    container.innerHTML = '';
+    
+    // Sort by creation date and show recent 10
+    const recentCards = cards
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10);
+    
+    if (recentCards.length === 0) {
+        container.innerHTML = '<p style="color: #666; text-align: center;">No cards yet.</p>';
+        return;
+    }
+    
+    recentCards.forEach(card => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card-item';
+        cardDiv.style.cssText = `
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        `;
+        
+        cardDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1;">
+                    <span style="font-size: 12px; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 8px;">
+                        ${card.content_type.toUpperCase()}${card.is_ai_generated ? ' (AI)' : ''}
+                    </span>
+                    <div style="font-weight: 600; margin-bottom: 5px;">${card.front.substring(0, 100)}${card.front.length > 100 ? '...' : ''}</div>
+                    <div style="font-size: 12px; color: #888;">
+                        ${card.subject ? `${card.subject} | ` : ''}
+                        Created: ${new Date(card.created_at).toLocaleDateString()}
+                        | Reviews: ${card.repetition_count}
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(cardDiv);
+    });
+}
+
+async function loadGenerationHistory() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch(`/api/users/${USER_ID}/content-generations`);
+        const data = await response.json();
+        
+        const container = document.getElementById('generationHistory');
+        container.innerHTML = '';
+        
+        if (data.generations.length === 0) {
+            container.innerHTML = '<p style="color: #666; text-align: center;">No AI generations yet. Try the AI content generator!</p>';
+            return;
+        }
+        
+        data.generations.slice(0, 10).forEach(gen => {
+            const genDiv = document.createElement('div');
+            genDiv.className = 'card-item';
+            genDiv.style.cssText = `
+                padding: 15px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                border-left: 4px solid var(--secondary-color);
+            `;
+            
+            const statusColor = gen.generation_status === 'completed' ? 'var(--success-color)' : 
+                               gen.generation_status === 'failed' ? 'var(--error-color)' : 
+                               'var(--warning-color)';
+            
+            genDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 12px; background: var(--secondary-color); color: white; padding: 2px 8px; border-radius: 12px;">
+                                ${gen.generation_type.toUpperCase()}
+                            </span>
+                            <span style="font-size: 12px; background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 12px;">
+                                ${gen.generation_status.toUpperCase()}
+                            </span>
+                        </div>
+                        <div style="font-weight: 600; margin-bottom: 5px;">
+                            ${gen.subject || 'General'} - ${gen.cards_generated} cards generated
+                        </div>
+                        <div style="font-size: 12px; color: #888;">
+                            ${new Date(gen.created_at).toLocaleDateString()} | 
+                            Difficulty: ${gen.difficulty_level} | 
+                            Max: ${gen.max_cards}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(genDiv);
+        });
+        
+    } catch (error) {
+        console.error('Error loading generation history:', error);
+        document.getElementById('generationHistory').innerHTML = '<p style="color: #666;">Error loading generation history.</p>';
+    }
+}
+
+// Initialize analytics - user is already authenticated via Flask session
+window.addEventListener('load', function() {
+    // Get user ID from the template (passed from Flask)
+    {% if user %}
+    USER_ID = {{ user.id }};
+    loadAnalytics();
+    {% else %}
+    // Fallback - redirect to welcome page
+    window.location.href = '/welcome';
+    {% endif %}
+});
+</script>
+{% endblock %}

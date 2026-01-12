@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Active Recall{% endblock %}
+{% block page_title %}Welcome Back{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 0 auto;">
+    <div class="card">
+        <h2 style="text-align: center; margin-bottom: 30px;">Login to Your Account</h2>
+        
+        <div id="loginAlert" style="display: none;"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username or Email:</label>
+                <input type="text" id="username" name="username" required 
+                       placeholder="Enter your username or email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Enter your password">
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; font-weight: normal;">
+                    <input type="checkbox" id="rememberMe" style="width: auto; margin-right: 8px;">
+                    Remember me for 30 days
+                </label>
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%; margin-bottom: 20px;" id="loginBtn">
+                Login
+            </button>
+        </form>
+        
+        <div style="text-align: center; color: var(--text-secondary);">
+            <p>
+                <a href="#" onclick="showForgotPassword()" style="color: var(--primary-color); text-decoration: none;">
+                    Forgot your password?
+                </a>
+            </p>
+            <p>
+                Don't have an account? 
+                <a href="{{ url_for('web.register') }}" style="color: var(--primary-color); text-decoration: none;">
+                    Sign up here
+                </a>
+            </p>
+        </div>
+    </div>
+    
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <h2>Reset Your Password</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Enter your email address and we'll send you a link to reset your password.
+            </p>
+            
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="resetEmail">Email Address:</label>
+                    <input type="email" id="resetEmail" required 
+                           placeholder="Enter your email address">
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button type="submit" class="btn" id="resetBtn">Send Reset Link</button>
+                    <button type="button" onclick="closeForgotPassword()" 
+                            class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Login form handler
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const loginBtn = document.getElementById('loginBtn');
+    const originalText = loginBtn.textContent;
+    loginBtn.textContent = 'Logging in...';
+    loginBtn.disabled = true;
+    
+    const formData = {
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value,
+        remember_me: document.getElementById('rememberMe').checked
+    };
+    
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('Login successful! Redirecting...', 'success');
+            
+            // Store user info in localStorage for client-side use
+            localStorage.setItem('user', JSON.stringify(result.user));
+            
+            // Redirect to dashboard
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
+        } else {
+            showAlert(result.error || 'Login failed', 'error');
+        }
+    } catch (error) {
+        showAlert('Network error. Please try again.', 'error');
+    } finally {
+        loginBtn.textContent = originalText;
+        loginBtn.disabled = false;
+    }
+});
+
+// Forgot password form handler
+document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const resetBtn = document.getElementById('resetBtn');
+    const originalText = resetBtn.textContent;
+    resetBtn.textContent = 'Sending...';
+    resetBtn.disabled = true;
+    
+    const email = document.getElementById('resetEmail').value.trim();
+    
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: email })
+        });
+        
+        const result = await response.json();
+        
+        showAlert(result.message, 'success');
+        closeForgotPassword();
+        
+    } catch (error) {
+        showAlert('Network error. Please try again.', 'error');
+    } finally {
+        resetBtn.textContent = originalText;
+        resetBtn.disabled = false;
+    }
+});
+
+// Modal functions
+function showForgotPassword() {
+    document.getElementById('forgotPasswordModal').style.display = 'block';
+}
+
+function closeForgotPassword() {
+    document.getElementById('forgotPasswordModal').style.display = 'none';
+    document.getElementById('forgotPasswordForm').reset();
+}
+
+// Alert function
+function showAlert(message, type) {
+    const alertDiv = document.getElementById('loginAlert');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    alertDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        alertDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Clear any invalid session data on page load
+window.addEventListener('load', function() {
+    // Clear localStorage to prevent any stale data
+    localStorage.removeItem('user');
+    console.log('Login page loaded - ready for authentication');
+});
+</script>
+{% endblock %}

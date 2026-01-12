@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Active Recall{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- User Stats -->
+<div class="stats-grid" id="stats">
+    <div class="stat-card">
+        <div class="stat-number" id="totalCards">0</div>
+        <div class="stat-label">Total Cards</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="dueCards">0</div>
+        <div class="stat-label">Due for Review</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="newCards">0</div>
+        <div class="stat-label">New Cards</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="matureCards">0</div>
+        <div class="stat-label">Mature Cards</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <h2>Quick Actions</h2>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
+        <a href="{{ url_for('web.study_interface') }}" class="btn btn-success">📚 Start Studying</a>
+        <button onclick="showAddCard()" class="btn">➕ Add Card</button>
+        <button onclick="showAIGeneration()" class="btn btn-secondary">🤖 AI Generate</button>
+        <button onclick="loadCards()" class="btn" style="background: #666;">🔄 Refresh</button>
+    </div>
+</div>
+
+<!-- Add Card Modal -->
+<div id="addCardModal" class="modal">
+    <div class="modal-content">
+        <h2>Add New Content</h2>
+        <form id="contentForm">
+            <div class="form-group">
+                <label for="contentType">Content Type:</label>
+                <select id="contentType" required>
+                    <option value="flashcard">Flashcard (Question & Answer)</option>
+                    <option value="information">Information Piece (Formula, Fact, etc.)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="front" id="frontLabel">Question:</label>
+                <textarea id="front" required placeholder="Enter your question or information..."></textarea>
+            </div>
+
+            <div class="form-group" id="backGroup">
+                <label for="back">Answer:</label>
+                <textarea id="back" placeholder="Enter the answer..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">Subject:</label>
+                <input type="text" id="subject" placeholder="e.g., Geography, Physics, Spanish">
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags (comma-separated):</label>
+                <input type="text" id="tags" placeholder="e.g., formula, important, exam">
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button type="submit" class="btn">Add Content</button>
+                <button type="button" onclick="closeAddCard()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- AI Generation Modal -->
+<div id="aiModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h2>🤖 AI Content Generation</h2>
+        <p>Upload PDFs, images, or paste text to generate optimized flashcards and information pieces!</p>
+        
+        <form id="aiGenerationForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="aiSourceMaterial">Study Material (Text):</label>
+                <textarea id="aiSourceMaterial" style="height: 120px;" 
+                        placeholder="Paste your notes, textbook excerpts, articles, or any study material here..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiPdfFile">Upload PDF:</label>
+                <input type="file" id="aiPdfFile" accept=".pdf" 
+                       style="padding: 8px; border: 2px dashed var(--border-color); border-radius: 8px;">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Upload a PDF document to extract text content
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiImages">Upload Images:</label>
+                <input type="file" id="aiImages" accept="image/*" multiple 
+                       style="padding: 8px; border: 2px dashed var(--border-color); border-radius: 8px;">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Upload up to 5 images (diagrams, charts, screenshots, etc.)
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiGenerationType">Generation Type:</label>
+                <select id="aiGenerationType">
+                    <option value="flashcards">Flashcards (Q&A pairs)</option>
+                    <option value="information">Information Pieces (Facts & Concepts)</option>
+                    <option value="mixed" selected>Mixed Content (Both)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiSubject">Subject (Optional):</label>
+                <input type="text" id="aiSubject" placeholder="e.g., Biology, Physics, History">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Leave blank if not specific to a subject
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiFocusAreas">Focus Areas (Optional):</label>
+                <input type="text" id="aiFocusAreas" 
+                       placeholder="e.g., formulas, definitions, key concepts">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Comma-separated areas to focus on (leave blank for general content)
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="aiMaxCards">Max Items:</label>
+                <input type="number" id="aiMaxCards" value="10" min="1" max="25">
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button type="submit" id="generateBtn" class="btn btn-secondary">Generate Content</button>
+                <button type="button" onclick="closeAIModal()" class="btn" style="background: #666; margin-left: 10px;">Cancel</button>
+            </div>
+        </form>
+        
+        <div id="aiResults" style="margin-top: 20px; display: none;">
+            <h3>✅ Generation Complete!</h3>
+            <div id="aiResultsContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Cards List -->
+<div class="card">
+    <h2>Your Content</h2>
+    <div id="cardsList" style="margin-top: 20px;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get current user ID from session
+let USER_ID = null;
+
+// Check authentication and get user info
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/validate');
+        if (response.ok) {
+            const result = await response.json();
+            USER_ID = result.user.id;
+            
+            // Update UI with user info
+            const userInfo = document.createElement('div');
+            userInfo.style.cssText = 'text-align: center; margin-bottom: 20px; color: var(--text-secondary);';
+            userInfo.innerHTML = `Welcome back, <strong>${result.user.full_name || result.user.username}</strong>!`;
+            document.querySelector('.container').insertBefore(userInfo, document.querySelector('.stats-grid'));
+            
+            return true;
+        } else {
+            // Redirect to login if not authenticated
+            window.location.href = '/login';
+            return false;
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        window.location.href = '/login';
+        return false;
+    }
+}
+
+// Initialize user if needed (legacy compatibility)
+async function initUser() {
+    // No longer needed - user is authenticated
+    return true;
+}
+
+// Modal functions
+function showAddCard() {
+    document.getElementById('addCardModal').style.display = 'block';
+}
+
+function closeAddCard() {
+    document.getElementById('addCardModal').style.display = 'none';
+    document.getElementById('contentForm').reset();
+}
+
+function showAIGeneration() {
+    document.getElementById('aiModal').style.display = 'block';
+}
+
+function closeAIModal() {
+    document.getElementById('aiModal').style.display = 'none';
+    document.getElementById('aiResults').style.display = 'none';
+    document.getElementById('aiSourceMaterial').value = '';
+}
+
+// Update content type form
+document.getElementById('contentType').addEventListener('change', function() {
+    const isFlashcard = this.value === 'flashcard';
+    const backGroup = document.getElementById('backGroup');
+    const frontLabel = document.getElementById('frontLabel');
+    const backField = document.getElementById('back');
+    
+    if (isFlashcard) {
+        frontLabel.textContent = 'Question:';
+        backGroup.style.display = 'block';
+        backField.required = true;
+    } else {
+        frontLabel.textContent = 'Information:';
+        backGroup.style.display = 'none';
+        backField.required = false;
+    }
+});
+
+// Add content
+document.getElementById('contentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!USER_ID) {
+        showAlert('Please log in to add content', 'error');
+        return;
+    }
+    
+    const formData = {
+        content_type: document.getElementById('contentType').value,
+        front: document.getElementById('front').value,
+        back: document.getElementById('back').value,
+        subject: document.getElementById('subject').value,
+        tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)
+    };
+
+    try {
+        const response = await fetch('/cards', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            showAlert('Content added successfully!', 'success');
+            closeAddCard();
+            loadCards();
+            loadStats();
+        } else {
+            const result = await response.json();
+            showAlert(result.error || 'Error adding content', 'error');
+        }
+    } catch (error) {
+        showAlert('Network error', 'error');
+    }
+});
+
+// Load cards
+async function loadCards() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch(`/users/${USER_ID}/cards`);
+        const data = await response.json();
+        
+        const cardsList = document.getElementById('cardsList');
+        cardsList.innerHTML = '';
+        
+        if (data.cards.length === 0) {
+            cardsList.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No cards yet. Add some content to get started!</p>';
+            return;
+        }
+        
+        data.cards.forEach(card => {
+            const cardDiv = document.createElement('div');
+            cardDiv.style.cssText = `
+                background: #f8f9fa;
+                padding: 15px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                border-left: 4px solid var(--primary-color);
+            `;
+            
+            cardDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <span style="font-size: 12px; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 8px;">
+                            ${card.content_type.toUpperCase()}${card.is_ai_generated ? ' (AI)' : ''}
+                        </span>
+                        <div style="font-weight: 600; margin-bottom: 5px;">${card.front}</div>
+                        ${card.back ? `<div style="color: #666; margin-bottom: 8px;">${card.back}</div>` : ''}
+                        <div style="font-size: 12px; color: #888;">
+                            ${card.subject ? `Subject: ${card.subject} | ` : ''}
+                            Next review: ${new Date(card.next_review).toLocaleDateString()}
+                            ${card.is_due ? ' <span style="color: var(--success-color); font-weight: bold;">(DUE)</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            cardsList.appendChild(cardDiv);
+        });
+    } catch (error) {
+        console.error('Error loading cards:', error);
+        if (error.message.includes('401')) {
+            window.location.href = '/login';
+        }
+    }
+}
+
+// Load stats
+async function loadStats() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch(`/users/${USER_ID}/stats`);
+        const stats = await response.json();
+        
+        document.getElementById('totalCards').textContent = stats.total_cards;
+        document.getElementById('dueCards').textContent = stats.due_cards;
+        document.getElementById('newCards').textContent = stats.new_cards;
+        document.getElementById('matureCards').textContent = stats.mature_cards;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        if (error.message.includes('401')) {
+            window.location.href = '/login';
+        }
+    }
+}
+
+// AI Generation
+async function generateAIContent() {
+    if (!USER_ID) {
+        showAlert('Please log in to use AI generation', 'error');
+        return;
+    }
+    
+    const sourceMaterial = document.getElementById('aiSourceMaterial').value.trim();
+    if (!sourceMaterial) {
+        showAlert('Please enter some study material to generate content from.', 'error');
+        return;
+    }
+
+    const generateBtn = document.getElementById('generateBtn');
+    const originalText = generateBtn.textContent;
+    generateBtn.textContent = 'Generating...';
+    generateBtn.disabled = true;
+
+    const requestData = {
+        source_material: sourceMaterial,
+        generation_type: document.getElementById('aiGenerationType').value,
+        subject: document.getElementById('aiSubject').value,
+        max_cards: parseInt(document.getElementById('aiMaxCards').value),
+        difficulty_level: document.getElementById('aiDifficulty').value
+    };
+
+    try {
+        const response = await fetch('/generate-content', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('aiResults').style.display = 'block';
+            document.getElementById('aiResultsContent').innerHTML = `
+                <div class="alert alert-success">
+                    <strong>Successfully generated ${result.cards_generated} items!</strong>
+                </div>
+                <div style="margin-top: 15px;">
+                    <h4>Preview of Generated Content:</h4>
+                    ${result.cards.slice(0, 3).map((card, index) => `
+                        <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 6px;">
+                            <strong>${card.content_type.toUpperCase()}:</strong> ${card.front}
+                            ${card.back ? `<br><em>Answer: ${card.back}</em>` : ''}
+                        </div>
+                    `).join('')}
+                    ${result.cards.length > 3 ? `<p><em>... and ${result.cards.length - 3} more items</em></p>` : ''}
+                </div>
+                <p style="color: #666; font-size: 14px; margin-top: 15px;">
+                    All generated content has been added to your collection and is ready for spaced repetition learning!
+                </p>
+            `;
+            
+            loadCards();
+            loadStats();
+        } else {
+            if (response.status === 503) {
+                showAlert('AI content generation is not configured on the server. Please set up an OpenAI API key to use this feature.', 'error');
+            } else {
+                showAlert(`Error generating content: ${result.error || 'Unknown error'}`, 'error');
+            }
+        }
+    } catch (error) {
+        showAlert(`Network error: ${error.message}`, 'error');
+    } finally {
+        generateBtn.textContent = originalText;
+        generateBtn.disabled = false;
+    }
+}
+
+// Utility functions
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Initialize - check auth first, then load data
+checkAuth().then(authenticated => {
+    if (authenticated) {
+        loadCards();
+        loadStats();
+    }
+});
+</script>
+{% endblock %}

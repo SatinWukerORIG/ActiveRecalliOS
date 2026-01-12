@@ -1,0 +1,180 @@
+import Foundation
+
+// MARK: - User Model
+struct User: Codable, Identifiable {
+    let id: Int
+    let username: String
+    let email: String?
+    let deviceToken: String?
+    let activeActivityToken: String?
+    let focusMode: Bool
+    let notificationFrequency: Int
+    let createdAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, username, email
+        case deviceToken = "device_token"
+        case activeActivityToken = "active_activity_token"
+        case focusMode = "focus_mode"
+        case notificationFrequency = "notification_frequency"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Card Model
+struct Card: Codable, Identifiable {
+    let id: Int
+    let contentType: String
+    let front: String
+    let back: String?
+    let subject: String?
+    let tags: [String]
+    let nextReview: String
+    let isAiGenerated: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case contentType = "content_type"
+        case front, back, subject, tags
+        case nextReview = "next_review"
+        case isAiGenerated = "is_ai_generated"
+    }
+}
+
+// MARK: - User Stats Model
+struct UserStats: Codable {
+    let totalCards: Int
+    let dueCards: Int
+    let subjects: [String: Int]
+    
+    enum CodingKeys: String, CodingKey {
+        case totalCards = "total_cards"
+        case dueCards = "due_cards"
+        case subjects
+    }
+}
+
+// MARK: - Content Generation Models
+struct ContentGenerationResult: Codable {
+    let message: String
+    let generationId: Int
+    let cardsGenerated: Int
+    let cards: [GeneratedCard]
+    
+    enum CodingKeys: String, CodingKey {
+        case message
+        case generationId = "generation_id"
+        case cardsGenerated = "cards_generated"
+        case cards
+    }
+}
+
+struct GeneratedCard: Codable {
+    let contentType: String
+    let front: String
+    let back: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case contentType = "content_type"
+        case front, back
+    }
+}
+
+struct ContentGeneration: Codable, Identifiable {
+    let id: Int
+    let generationType: String
+    let subject: String?
+    let cardsGenerated: Int
+    let generationStatus: String
+    let difficultyLevel: String
+    let createdAt: String
+    let completedAt: String?
+    let errorMessage: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case generationType = "generation_type"
+        case subject
+        case cardsGenerated = "cards_generated"
+        case generationStatus = "generation_status"
+        case difficultyLevel = "difficulty_level"
+        case createdAt = "created_at"
+        case completedAt = "completed_at"
+        case errorMessage = "error_message"
+    }
+}
+
+// MARK: - User Availability Model
+struct UserAvailability: Codable {
+    let available: Bool
+    let reasons: [String]
+    let nextDueCard: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case available, reasons
+        case nextDueCard = "next_due_card"
+    }
+}
+
+// MARK: - App State
+class AppState: ObservableObject {
+    @Published var currentUser: User?
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    
+    init() {
+        initializeUser()
+    }
+    
+    func initializeUser() {
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                // Try to get existing user or create a new one
+                let user = try await getOrCreateUser()
+                await MainActor.run {
+                    self.currentUser = user
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to initialize user: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func getOrCreateUser() async throws -> User {
+        // Check if we have a stored user ID
+        let storedUserId = UserDefaults.standard.integer(forKey: "user_id")
+        
+        if storedUserId > 0 {
+            // Try to get existing user
+            if let existingUser = try await APIManager.shared.getUser(id: storedUserId) {
+                return existingUser
+            }
+        }
+        
+        // Create new user
+        let newUser = try await APIManager.shared.createUser(
+            username: "User\(Int.random(in: 1000...9999))",
+            email: "user@example.com"
+        )
+        
+        // Store user ID for future use
+        UserDefaults.standard.set(newUser.id, forKey: "user_id")
+        
+        return newUser
+    }
+}
+
+// MARK: - Study Session Manager
+class StudySessionManager: ObservableObject {
+    func startStudySession(question: String) {
+        // This would integrate with Live Activities
+        print("Starting study session with question: \(question)")
+    }
+}

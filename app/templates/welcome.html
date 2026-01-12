@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Active Recall{% endblock %}
+{% block page_title %}Active Recall{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto; text-align: center;">
+    
+    <!-- Hero Section -->
+    <div style="padding: 60px 20px;">
+        <h1 style="font-size: 3rem; margin-bottom: 20px; color: var(--primary-color);">
+            🧠 Active Recall
+        </h1>
+        <p style="font-size: 1.3rem; color: var(--text-secondary); margin-bottom: 40px; line-height: 1.6;">
+            Effortless learning through interruption. Transform your "dead time" into powerful learning moments.
+        </p>
+        
+        <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+            <a href="{{ url_for('web.login') }}" class="btn" style="font-size: 1.1rem; padding: 15px 30px;">
+                Login to Your Account
+            </a>
+            <a href="{{ url_for('web.register') }}" class="btn" style="background: var(--secondary-color); font-size: 1.1rem; padding: 15px 30px;">
+                Create New Account
+            </a>
+        </div>
+    </div>
+    
+    <!-- Features Section -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin: 60px 0;">
+        
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">📚</div>
+            <h3 style="margin-bottom: 15px;">Smart Content</h3>
+            <p style="color: var(--text-secondary);">
+                Create flashcards and information pieces. Use AI to generate content from your study materials.
+            </p>
+        </div>
+        
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🔄</div>
+            <h3 style="margin-bottom: 15px;">Spaced Repetition</h3>
+            <p style="color: var(--text-secondary);">
+                Scientifically-proven SM-2 algorithm optimizes your learning intervals for maximum retention.
+            </p>
+        </div>
+        
+        <div class="card" style="text-align: center; padding: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">📱</div>
+            <h3 style="margin-bottom: 15px;">Smart Interruptions</h3>
+            <p style="color: var(--text-secondary);">
+                Context-aware notifications and iOS Live Activities that respect your focus time and schedule.
+            </p>
+        </div>
+        
+    </div>
+    
+    <!-- Demo Section -->
+    <div class="card" style="padding: 40px; margin: 40px 0;">
+        <h2 style="margin-bottom: 20px;">Try the Demo Account</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">
+            Experience Active Recall with pre-loaded sample content.
+        </p>
+        
+        <div class="info-box" style="padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <strong>Demo Credentials:</strong><br>
+            Username: <code>demo_user</code><br>
+            Password: <code>demo123</code>
+        </div>
+        
+        <a href="{{ url_for('web.login') }}" class="btn" style="background: var(--secondary-color);">
+            Login with Demo Account
+        </a>
+    </div>
+    
+    <!-- Getting Started -->
+    <div style="margin: 60px 0; text-align: left;">
+        <h2 style="text-align: center; margin-bottom: 30px;">Getting Started</h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            
+            <div style="display: flex; align-items: flex-start; gap: 15px;">
+                <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
+                <div>
+                    <h4>Create Your Account</h4>
+                    <p style="color: var(--text-secondary); margin: 0;">Sign up with your email and create a secure password.</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: flex-start; gap: 15px;">
+                <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
+                <div>
+                    <h4>Add Your Content</h4>
+                    <p style="color: var(--text-secondary); margin: 0;">Create flashcards manually or use AI to generate content from your materials.</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: flex-start; gap: 15px;">
+                <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">3</div>
+                <div>
+                    <h4>Configure Notifications</h4>
+                    <p style="color: var(--text-secondary); margin: 0;">Set your preferred study schedule and notification preferences.</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: flex-start; gap: 15px;">
+                <div style="background: var(--primary-color); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">4</div>
+                <div>
+                    <h4>Start Learning</h4>
+                    <p style="color: var(--text-secondary); margin: 0;">Begin your study sessions and let Active Recall optimize your learning.</p>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Simple page load handler
+window.addEventListener('load', function() {
+    console.log('Welcome to Active Recall!');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Study Session - Active Recall{% endblock %}
+{% block page_title %}Study Session{% endblock %}
+
+{% block content %}
+<div id="studySession" style="display: none;">
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Study Session</h2>
+            <div style="color: var(--text-secondary);">
+                Card <span id="currentCardIndex">1</span> of <span id="totalCards">0</span>
+            </div>
+        </div>
+        
+        <div id="cardContent" class="card study-card-area" style="min-height: 200px; display: flex; flex-direction: column; justify-content: center; text-align: center;">
+            <div id="cardFront" style="font-size: 1.2rem; margin-bottom: 20px;"></div>
+            <div id="cardBack" style="font-size: 1rem; color: var(--text-secondary); display: none;"></div>
+        </div>
+        
+        <div id="studyControls" style="text-align: center; margin-top: 20px;">
+            <button id="showAnswerBtn" onclick="showAnswer()" class="btn" style="display: none;">Show Answer</button>
+            
+            <div id="ratingButtons" style="display: none;">
+                <p style="margin-bottom: 15px; color: var(--text-secondary);">How well did you know this?</p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="rateCard(0)" class="btn btn-danger">Again (0)</button>
+                    <button onclick="rateCard(1)" class="btn" style="background: #ff6b35;">Hard (1)</button>
+                    <button onclick="rateCard(3)" class="btn" style="background: #f7931e;">Good (3)</button>
+                    <button onclick="rateCard(5)" class="btn btn-success">Easy (5)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="noCardsMessage" class="card" style="text-align: center; display: none;">
+    <h2>🎉 All caught up!</h2>
+    <p style="color: var(--text-secondary); margin: 20px 0;">You have no cards due for review right now.</p>
+    <a href="{{ url_for('web.index') }}" class="btn">Back to Dashboard</a>
+</div>
+
+<div id="sessionComplete" class="card" style="text-align: center; display: none;">
+    <h2>🎉 Session Complete!</h2>
+    <p style="color: var(--text-secondary); margin: 20px 0;">Great job! You've reviewed all your due cards.</p>
+    <div style="margin: 20px 0;">
+        <div class="stat-card" style="display: inline-block; margin: 0 10px;">
+            <div class="stat-number" id="sessionCardsReviewed">0</div>
+            <div class="stat-label">Cards Reviewed</div>
+        </div>
+    </div>
+    <div>
+        <button onclick="startNewSession()" class="btn">Study More</button>
+        <a href="{{ url_for('web.index') }}" class="btn" style="background: #666; margin-left: 10px;">Back to Dashboard</a>
+    </div>
+</div>
+
+<div id="loadingMessage" class="card" style="text-align: center;">
+    <h2>Loading your study session...</h2>
+    <p style="color: var(--text-secondary);">Preparing your cards for review</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let USER_ID = null;
+
+async function loadStudySession() {
+    if (!USER_ID) return;
+    
+    try {
+        const response = await fetch(`/api/users/${USER_ID}/review-session?batch_size=10`);
+        const data = await response.json();
+        
+        document.getElementById('loadingMessage').style.display = 'none';
+        
+        if (data.cards.length === 0) {
+            document.getElementById('noCardsMessage').style.display = 'block';
+            return;
+        }
+        
+        currentSession = data.cards;
+        currentCardIndex = 0;
+        cardsReviewed = 0;
+        
+        document.getElementById('studySession').style.display = 'block';
+        document.getElementById('totalCards').textContent = currentSession.length;
+        
+        showCurrentCard();
+        
+    } catch (error) {
+        console.error('Error loading study session:', error);
+        if (error.message.includes('401')) {
+            window.location.href = '/login';
+        } else {
+            showAlert('Error loading study session', 'error');
+        }
+    }
+}
+
+let currentSession = [];
+let currentCardIndex = 0;
+let cardsReviewed = 0;
+
+function showCurrentCard() {
+    if (currentCardIndex >= currentSession.length) {
+        showSessionComplete();
+        return;
+    }
+    
+    const card = currentSession[currentCardIndex];
+    
+    document.getElementById('currentCardIndex').textContent = currentCardIndex + 1;
+    document.getElementById('cardFront').textContent = card.front;
+    document.getElementById('cardBack').textContent = card.back || '';
+    
+    // Reset card display
+    document.getElementById('cardBack').style.display = 'none';
+    document.getElementById('showAnswerBtn').style.display = card.content_type === 'flashcard' ? 'inline-block' : 'none';
+    document.getElementById('ratingButtons').style.display = card.content_type === 'information' ? 'block' : 'none';
+}
+
+function showAnswer() {
+    document.getElementById('cardBack').style.display = 'block';
+    document.getElementById('showAnswerBtn').style.display = 'none';
+    document.getElementById('ratingButtons').style.display = 'block';
+}
+
+async function rateCard(quality) {
+    const card = currentSession[currentCardIndex];
+    
+    try {
+        const response = await fetch(`/api/cards/${card.id}/review`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ quality: quality })
+        });
+        
+        if (response.ok) {
+            cardsReviewed++;
+            currentCardIndex++;
+            showCurrentCard();
+        } else {
+            showAlert('Error reviewing card', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error reviewing card:', error);
+        showAlert('Network error', 'error');
+    }
+}
+
+function showSessionComplete() {
+    document.getElementById('studySession').style.display = 'none';
+    document.getElementById('sessionComplete').style.display = 'block';
+    document.getElementById('sessionCardsReviewed').textContent = cardsReviewed;
+}
+
+function startNewSession() {
+    document.getElementById('sessionComplete').style.display = 'none';
+    document.getElementById('loadingMessage').style.display = 'block';
+    loadStudySession();
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Initialize study session - user is already authenticated via Flask session
+window.addEventListener('load', function() {
+    // Get user ID from the template (passed from Flask)
+    {% if user %}
+    USER_ID = {{ user.id }};
+    loadStudySession();
+    {% else %}
+    // Fallback - redirect to welcome page
+    window.location.href = '/welcome';
+    {% endif %}
+});
+</script>
+{% endblock %}

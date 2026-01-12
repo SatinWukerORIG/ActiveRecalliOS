@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Recall - Content Management</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        .card-list {
+            margin-top: 30px;
+        }
+        .card-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #007AFF;
+        }
+        .card-type {
+            font-size: 12px;
+            background: #007AFF;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007AFF;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Active Recall</h1>
+        
+        <!-- User Stats -->
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCards">0</div>
+                <div class="stat-label">Total Cards</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="dueCards">0</div>
+                <div class="stat-label">Due for Review</div>
+            </div>
+        </div>
+
+        <!-- Add Content Form -->
+        <form id="contentForm">
+            <div class="form-group">
+                <label for="contentType">Content Type:</label>
+                <select id="contentType" required>
+                    <option value="flashcard">Flashcard (Question & Answer)</option>
+                    <option value="information">Information Piece (Formula, Fact, etc.)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="front" id="frontLabel">Question:</label>
+                <textarea id="front" required placeholder="Enter your question or information..."></textarea>
+            </div>
+
+            <div class="form-group" id="backGroup">
+                <label for="back">Answer:</label>
+                <textarea id="back" placeholder="Enter the answer..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">Subject:</label>
+                <input type="text" id="subject" placeholder="e.g., Geography, Physics, Spanish">
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags (comma-separated):</label>
+                <input type="text" id="tags" placeholder="e.g., formula, important, exam">
+            </div>
+
+            <button type="submit">Add Content</button>
+            <button type="button" onclick="loadCards()">Refresh Cards</button>
+            <button type="button" onclick="showAIGeneration()" style="background: #8A2BE2;">🤖 AI Generate</button>
+        </form>
+
+        <!-- AI Generation Modal -->
+        <div id="aiModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80%; overflow-y: auto;">
+                <h2>🤖 AI Content Generation</h2>
+                <p>Paste your study material below and let AI create optimized flashcards and information pieces for you!</p>
+                
+                <div class="form-group">
+                    <label for="aiSourceMaterial">Study Material:</label>
+                    <textarea id="aiSourceMaterial" style="height: 150px;" placeholder="Paste your notes, textbook excerpts, articles, or any study material here..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="aiGenerationType">Generation Type:</label>
+                    <select id="aiGenerationType">
+                        <option value="flashcards">Flashcards (Q&A pairs)</option>
+                        <option value="information">Information Pieces (Facts & Concepts)</option>
+                        <option value="mixed" selected>Mixed Content (Both)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="aiSubject">Subject:</label>
+                    <input type="text" id="aiSubject" placeholder="e.g., Biology, Physics, History">
+                </div>
+                
+                <div class="form-group">
+                    <label for="aiMaxCards">Max Items:</label>
+                    <input type="number" id="aiMaxCards" value="10" min="1" max="20">
+                </div>
+                
+                <div class="form-group">
+                    <label for="aiDifficulty">Difficulty:</label>
+                    <select id="aiDifficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button onclick="generateAIContent()" id="generateBtn" style="background: #8A2BE2;">Generate Content</button>
+                    <button onclick="closeAIModal()" style="background: #666; margin-left: 10px;">Cancel</button>
+                </div>
+                
+                <div id="aiResults" style="margin-top: 20px; display: none;">
+                    <h3>✅ Generation Complete!</h3>
+                    <div id="aiResultsContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards List -->
+        <div class="card-list">
+            <h3>Your Content</h3>
+            <div id="cardsList"></div>
+        </div>
+    </div>
+
+    <script>
+        const USER_ID = 1; // For demo purposes
+        
+        // Initialize user if needed
+        async function initUser() {
+            try {
+                const response = await fetch(`/users/${USER_ID}`);
+                if (response.status === 404) {
+                    // Create demo user
+                    await fetch('/users', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            username: 'demo_user',
+                            email: 'demo@activerecall.com'
+                        })
+                    });
+                }
+            } catch (error) {
+                console.log('User initialization:', error);
+            }
+        }
+
+        // Update content type form
+        document.getElementById('contentType').addEventListener('change', function() {
+            const isFlashcard = this.value === 'flashcard';
+            const backGroup = document.getElementById('backGroup');
+            const frontLabel = document.getElementById('frontLabel');
+            const backField = document.getElementById('back');
+            
+            if (isFlashcard) {
+                frontLabel.textContent = 'Question:';
+                backGroup.style.display = 'block';
+                backField.required = true;
+            } else {
+                frontLabel.textContent = 'Information:';
+                backGroup.style.display = 'none';
+                backField.required = false;
+            }
+        });
+
+        // Add content
+        document.getElementById('contentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                user_id: USER_ID,
+                content_type: document.getElementById('contentType').value,
+                front: document.getElementById('front').value,
+                back: document.getElementById('back').value,
+                subject: document.getElementById('subject').value,
+                tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)
+            };
+
+            try {
+                const response = await fetch('/cards', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    alert('Content added successfully!');
+                    document.getElementById('contentForm').reset();
+                    loadCards();
+                    loadStats();
+                } else {
+                    alert('Error adding content');
+                }
+            } catch (error) {
+                alert('Network error');
+            }
+        });
+
+        // Load cards
+        async function loadCards() {
+            try {
+                const response = await fetch(`/users/${USER_ID}/cards`);
+                const data = await response.json();
+                
+                const cardsList = document.getElementById('cardsList');
+                cardsList.innerHTML = '';
+                
+                data.cards.forEach(card => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card-item';
+                    cardDiv.innerHTML = `
+                        <span class="card-type">${card.content_type}</span>
+                        <div><strong>${card.front}</strong></div>
+                        ${card.back ? `<div style="margin-top: 8px; color: #666;">${card.back}</div>` : ''}
+                        <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                            ${card.subject ? `Subject: ${card.subject} | ` : ''}
+                            Next review: ${new Date(card.next_review).toLocaleDateString()}
+                        </div>
+                    `;
+                    cardsList.appendChild(cardDiv);
+                });
+            } catch (error) {
+                console.error('Error loading cards:', error);
+            }
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const response = await fetch(`/users/${USER_ID}/stats`);
+                const stats = await response.json();
+                
+                document.getElementById('totalCards').textContent = stats.total_cards;
+                document.getElementById('dueCards').textContent = stats.due_cards;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Initialize
+        initUser().then(() => {
+            loadCards();
+            loadStats();
+        });
+
+        // AI Generation Functions
+        function showAIGeneration() {
+            document.getElementById('aiModal').style.display = 'block';
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModal').style.display = 'none';
+            document.getElementById('aiResults').style.display = 'none';
+            document.getElementById('aiSourceMaterial').value = '';
+        }
+
+        async function generateAIContent() {
+            const sourceMaterial = document.getElementById('aiSourceMaterial').value.trim();
+            if (!sourceMaterial) {
+                alert('Please enter some study material to generate content from.');
+                return;
+            }
+
+            const generateBtn = document.getElementById('generateBtn');
+            const originalText = generateBtn.textContent;
+            generateBtn.textContent = 'Generating...';
+            generateBtn.disabled = true;
+
+            const requestData = {
+                user_id: USER_ID,
+                source_material: sourceMaterial,
+                generation_type: document.getElementById('aiGenerationType').value,
+                subject: document.getElementById('aiSubject').value,
+                max_cards: parseInt(document.getElementById('aiMaxCards').value),
+                difficulty_level: document.getElementById('aiDifficulty').value
+            };
+
+            try {
+                const response = await fetch('/generate-content', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Show success results
+                    document.getElementById('aiResults').style.display = 'block';
+                    document.getElementById('aiResultsContent').innerHTML = `
+                        <p><strong>Successfully generated ${result.cards_generated} items!</strong></p>
+                        <p>Generation ID: ${result.generation_id}</p>
+                        <div style="margin-top: 15px;">
+                            <h4>Preview of Generated Content:</h4>
+                            ${result.cards.slice(0, 3).map((card, index) => `
+                                <div style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 6px;">
+                                    <strong>${card.content_type.toUpperCase()}:</strong> ${card.front}
+                                    ${card.back ? `<br><em>Answer: ${card.back}</em>` : ''}
+                                </div>
+                            `).join('')}
+                            ${result.cards.length > 3 ? `<p><em>... and ${result.cards.length - 3} more items</em></p>` : ''}
+                        </div>
+                        <p style="color: #666; font-size: 14px; margin-top: 15px;">
+                            All generated content has been added to your collection and is ready for spaced repetition learning!
+                        </p>
+                    `;
+                    
+                    // Refresh the cards list to show new content
+                    loadCards();
+                    loadStats();
+                } else {
+                    // Show error
+                    if (response.status === 503) {
+                        alert('AI content generation is not configured on the server. Please set up an OpenAI API key to use this feature.');
+                    } else {
+                        alert(`Error generating content: ${result.error || 'Unknown error'}`);
+                    }
+                }
+            } catch (error) {
+                alert(`Network error: ${error.message}`);
+            } finally {
+                generateBtn.textContent = originalText;
+                generateBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

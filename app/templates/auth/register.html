@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - Active Recall{% endblock %}
+{% block page_title %}Join Active Recall{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 0 auto;">
+    <div class="card">
+        <h2 style="text-align: center; margin-bottom: 30px;">Create Your Account</h2>
+        
+        <div id="registerAlert" style="display: none;"></div>
+        
+        <form id="registerForm">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label for="firstName">First Name:</label>
+                    <input type="text" id="firstName" name="firstName" 
+                           placeholder="Enter your first name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="lastName">Last Name:</label>
+                    <input type="text" id="lastName" name="lastName" 
+                           placeholder="Enter your last name">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">Username: <span style="color: red;">*</span></label>
+                <input type="text" id="username" name="username" required 
+                       placeholder="Choose a username (3-20 characters)">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    Only letters, numbers, and underscores allowed
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address: <span style="color: red;">*</span></label>
+                <input type="email" id="email" name="email" required 
+                       placeholder="Enter your email address">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password: <span style="color: red;">*</span></label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Create a strong password">
+                <small style="color: var(--text-secondary); font-size: 12px;">
+                    At least 8 characters with letters and numbers
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password: <span style="color: red;">*</span></label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required 
+                       placeholder="Confirm your password">
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: flex-start; font-weight: normal;">
+                    <input type="checkbox" id="agreeTerms" required 
+                           style="width: auto; margin-right: 8px; margin-top: 4px;">
+                    <span>
+                        I agree to the 
+                        <a href="#" style="color: var(--primary-color);">Terms of Service</a> 
+                        and 
+                        <a href="#" style="color: var(--primary-color);">Privacy Policy</a>
+                    </span>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%; margin-bottom: 20px;" id="registerBtn">
+                Create Account
+            </button>
+        </form>
+        
+        <div style="text-align: center; color: var(--text-secondary);">
+            <p>
+                Already have an account? 
+                <a href="{{ url_for('web.login') }}" style="color: var(--primary-color); text-decoration: none;">
+                    Sign in here
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Password confirmation validation
+document.getElementById('confirmPassword').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = this.value;
+    
+    if (confirmPassword && password !== confirmPassword) {
+        this.setCustomValidity('Passwords do not match');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Username validation
+document.getElementById('username').addEventListener('input', function() {
+    const username = this.value;
+    const isValid = /^[a-zA-Z0-9_]{3,20}$/.test(username);
+    
+    if (username && !isValid) {
+        this.setCustomValidity('Username must be 3-20 characters and contain only letters, numbers, and underscores');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Registration form handler
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const registerBtn = document.getElementById('registerBtn');
+    const originalText = registerBtn.textContent;
+    registerBtn.textContent = 'Creating Account...';
+    registerBtn.disabled = true;
+    
+    // Validate passwords match
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (password !== confirmPassword) {
+        showAlert('Passwords do not match', 'error');
+        registerBtn.textContent = originalText;
+        registerBtn.disabled = false;
+        return;
+    }
+    
+    const formData = {
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim().toLowerCase(),
+        password: password,
+        first_name: document.getElementById('firstName').value.trim(),
+        last_name: document.getElementById('lastName').value.trim()
+    };
+    
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('Account created successfully! Please log in.', 'success');
+            
+            // Redirect to login page after success
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else {
+            showAlert(result.error || 'Registration failed', 'error');
+        }
+    } catch (error) {
+        showAlert('Network error. Please try again.', 'error');
+    } finally {
+        registerBtn.textContent = originalText;
+        registerBtn.disabled = false;
+    }
+});
+
+// Alert function
+function showAlert(message, type) {
+    const alertDiv = document.getElementById('registerAlert');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+    alertDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        alertDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Clear any invalid session data on page load
+window.addEventListener('load', function() {
+    // Clear localStorage to prevent any stale data
+    localStorage.removeItem('user');
+    console.log('Register page loaded - ready for registration');
+});
+</script>
+{% endblock %}
